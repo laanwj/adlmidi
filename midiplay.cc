@@ -724,7 +724,7 @@ public:
 #endif
             {
               static const char map[8+1] = "04261537";
-              prn("\33[0;%s40;3%c",
+              prn("\33[0;%s3%c",
                   (newcolor&8) ? "1;" : "", map[newcolor&7]);
               // If xterm-256color is used, try using improved colors:
               //        Translate 8 (dark gray) into #003366 (bluish dark cyan)
