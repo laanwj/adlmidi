@@ -1500,6 +1500,7 @@ private:
             }
         }
     }
+
     void HandleEvent(size_t tk)
     {
         unsigned char byte = TrackData[tk][CurrentPosition.track[tk].ptr++];
@@ -1551,281 +1552,47 @@ private:
         switch(EvType)
         {
             case 0x8: // Note off
+            {
+                int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
+                int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
+                NoteOff(MidCh, note);
+                break;
+            }
             case 0x9: // Note on
             {
                 int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
                 int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                //if(MidCh != 9) note -= 12; // HACK
-                NoteOff(MidCh, note);
-                // On Note on, Keyoff the note first, just in case keyoff
-                // was omitted; this fixes Dance of sugar-plum fairy
-                // by Microsoft. Now that we've done a Keyoff,
-                // check if we still need to do a Keyon.
-                // vol=0 and event 8x are both Keyoff-only.
-                if(vol == 0 || EvType == 0x8) break;
-
-                unsigned midiins = Ch[MidCh].patch;
-                if(MidCh%16 == 9) midiins = 128 + note; // Percussion instrument
-
-                /*
-                if(MidCh%16 == 9 || (midiins != 32 && midiins != 46 && midiins != 48 && midiins != 50))
-                    break; // HACK
-                if(midiins == 46) vol = (vol*7)/10;          // HACK
-                if(midiins == 48 || midiins == 50) vol /= 4; // HACK
-                */
-                //if(midiins == 56) vol = vol*6/10; // HACK
-
-                static std::set<unsigned> bank_warnings;
-                if(Ch[MidCh].bank_msb)
-                {
-                    unsigned bankid = midiins + 256*Ch[MidCh].bank_msb;
-                    std::set<unsigned>::iterator
-                        i = bank_warnings.lower_bound(bankid);
-                    if(i == bank_warnings.end() || *i != bankid)
-                    {
-                        UI.PrintLn("[%u]Bank %u undefined, patch=%c%u",
-                            MidCh,
-                            Ch[MidCh].bank_msb,
-                            (midiins&128)?'P':'M', midiins&127);
-                        bank_warnings.insert(i, bankid);
-                    }
-                }
-                if(Ch[MidCh].bank_lsb)
-                {
-                    unsigned bankid = Ch[MidCh].bank_lsb*65536;
-                    std::set<unsigned>::iterator
-                        i = bank_warnings.lower_bound(bankid);
-                    if(i == bank_warnings.end() || *i != bankid)
-                    {
-                        UI.PrintLn("[%u]Bank lsb %u undefined",
-                            MidCh,
-                            Ch[MidCh].bank_lsb);
-                        bank_warnings.insert(i, bankid);
-                    }
-                }
-
-                int meta = banks[AdlBank][midiins];
-                int tone = note;
-                if(adlins[meta].tone)
-                {
-                    if(adlins[meta].tone < 20)
-                        tone += adlins[meta].tone;
-                    else if(adlins[meta].tone < 128)
-                        tone = adlins[meta].tone;
-                    else
-                        tone -= adlins[meta].tone-128;
-                }
-                int i[2] = { adlins[meta].adlno1, adlins[meta].adlno2 };
-                bool pseudo_4op = adlins[meta].flags & adlinsdata::Flag_Pseudo4op;
-
-                if(AdlPercussionMode && PercussionMap[midiins & 0xFF]) i[1] = i[0];
-
-                static std::set<unsigned char> missing_warnings;
-                if(!missing_warnings.count(midiins) && (adlins[meta].flags & adlinsdata::Flag_NoSound))
-                {
-                    UI.PrintLn("[%i]Playing missing instrument %i", MidCh, midiins);
-                    missing_warnings.insert(midiins);
-                }
-
-                // Allocate AdLib channel (the physical sound channel for the note)
-                int adlchannel[2] = { -1, -1 };
-                for(unsigned ccount = 0; ccount < 2; ++ccount)
-                {
-                    if(ccount == 1)
-                    {
-                        if(i[0] == i[1]) break; // No secondary channel
-                        if(adlchannel[0] == -1) break; // No secondary if primary failed
-                    }
-
-                    int c = -1;
-                    long bs = -0x7FFFFFFFl;
-                    for(int a = 0; a < (int)opl.NumChannels; ++a)
-                    {
-                        if(ccount == 1 && a == adlchannel[0]) continue;
-                        // ^ Don't use the same channel for primary&secondary
-
-                        if(i[0] == i[1] || pseudo_4op)
-                        {
-                            // Only use regular channels
-                            int expected_mode = 0;
-                            if(AdlPercussionMode)
-                                expected_mode = PercussionMap[midiins & 0xFF];
-                            if(opl.four_op_category[a] != expected_mode)
-                                continue;
-                        }
-                        else
-                        {
-                            if(ccount == 0)
-                            {
-                                // Only use four-op master channels
-                                if(opl.four_op_category[a] != 1)
-                                    continue;
-                            }
-                            else
-                            {
-                                // The secondary must be played on a specific channel.
-                                if(a != adlchannel[0] + 3)
-                                    continue;
-                            }
-                        }
-
-                        long s = CalculateAdlChannelGoodness(a, i[ccount], MidCh);
-                        if(s > bs) { bs=s; c = a; } // Best candidate wins
-                    }
-
-                    if(c < 0)
-                    {
-                        //UI.PrintLn("ignored unplaceable note");
-                        continue; // Could not play this note. Ignore it.
-                    }
-                    PrepareAdlChannelForNewNote(c, i[ccount]);
-                    adlchannel[ccount] = c;
-                }
-                if(adlchannel[0] < 0 && adlchannel[1] < 0)
-                {
-                    // The note could not be played, at all.
-                    break;
-                }
-                //UI.PrintLn("i1=%d:%d, i2=%d:%d", i[0],adlchannel[0], i[1],adlchannel[1]);
-
-                // Allocate active note for MIDI channel
-                std::pair<MIDIchannel::activenoteiterator,bool>
-                    ir = Ch[MidCh].activenotes.insert(
-                        std::make_pair(note, MIDIchannel::NoteInfo()));
-                ir.first->second.vol     = vol;
-                ir.first->second.tone    = tone;
-                ir.first->second.midiins = midiins;
-                ir.first->second.insmeta = meta;
-                for(unsigned ccount=0; ccount<2; ++ccount)
-                {
-                    int c = adlchannel[ccount];
-                    if(c < 0) continue;
-                    ir.first->second.phys[ adlchannel[ccount] ] = i[ccount];
-                }
-                CurrentPosition.began  = true;
-                NoteUpdate(MidCh, ir.first, Upd_All | Upd_Patch);
+                NoteOn(MidCh, note, vol);
                 break;
             }
             case 0xA: // Note touch
             {
                 int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
                 int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                MIDIchannel::activenoteiterator
-                    i = Ch[MidCh].activenotes.find(note);
-                if(i == Ch[MidCh].activenotes.end())
-                {
-                    // Ignore touch if note is not active
-                    break;
-                }
-                i->second.vol = vol;
-                NoteUpdate(MidCh, i, Upd_Volume);
+                NoteTouch(MidCh, note, vol);
                 break;
             }
             case 0xB: // Controller change
             {
                 int ctrlno = TrackData[tk][CurrentPosition.track[tk].ptr++];
                 int  value = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                switch(ctrlno)
-                {
-                    case 1: // Adjust vibrato
-                        //UI.PrintLn("%u:vibrato %d", MidCh,value);
-                        Ch[MidCh].vibrato = value; break;
-                    case 0: // Set bank msb (GM bank)
-                        Ch[MidCh].bank_msb = value;
-                        break;
-                    case 32: // Set bank lsb (XG bank)
-                        Ch[MidCh].bank_lsb = value;
-                        break;
-                    case 5: // Set portamento msb
-                        Ch[MidCh].portamento = (Ch[MidCh].portamento & 0x7F) | (value<<7);
-                        UpdatePortamento(MidCh);
-                        break;
-                    case 37: // Set portamento lsb
-                        Ch[MidCh].portamento = (Ch[MidCh].portamento & 0x3F80) | (value);
-                        UpdatePortamento(MidCh);
-                        break;
-                    case 65: // Enable/disable portamento
-                        // value >= 64 ? enabled : disabled
-                        //UpdatePortamento(MidCh);
-                        break;
-                    case 7: // Change volume
-                        Ch[MidCh].volume = value;
-                        NoteUpdate_All(MidCh, Upd_Volume);
-                        break;
-                    case 64: // Enable/disable sustain
-                        Ch[MidCh].sustain = value;
-                        if(!value) KillSustainingNotes( MidCh );
-                        break;
-                    case 11: // Change expression (another volume factor)
-                        Ch[MidCh].expression = value;
-                        NoteUpdate_All(MidCh, Upd_Volume);
-                        break;
-                    case 10: // Change panning
-                        Ch[MidCh].panning = 0x00;
-                        if(value  < 64+32) Ch[MidCh].panning |= 0x10;
-                        if(value >= 64-32) Ch[MidCh].panning |= 0x20;
-                        NoteUpdate_All(MidCh, Upd_Pan);
-                        break;
-                    case 121: // Reset all controllers
-                        Ch[MidCh].bend       = 0;
-                        Ch[MidCh].volume     = 100;
-                        Ch[MidCh].expression = 100;
-                        Ch[MidCh].sustain    = 0;
-                        Ch[MidCh].vibrato    = 0;
-                        Ch[MidCh].vibspeed   = 2*3.141592653*5.0;
-                        Ch[MidCh].vibdepth   = 0.5/127;
-                        Ch[MidCh].vibdelay   = 0;
-                        Ch[MidCh].panning    = 0x30;
-                        Ch[MidCh].portamento = 0;
-                        UpdatePortamento(MidCh);
-                        NoteUpdate_All(MidCh, Upd_Pan+Upd_Volume+Upd_Pitch);
-                        // Kill all sustained notes
-                        KillSustainingNotes(MidCh);
-                        break;
-                    case 123: // All notes off
-                        NoteUpdate_All(MidCh, Upd_Off);
-                        break;
-                    case 91: break; // Reverb effect depth. We don't do per-channel reverb.
-                    case 92: break; // Tremolo effect depth. We don't do...
-                    case 93: break; // Chorus effect depth. We don't do.
-                    case 94: break; // Celeste effect depth. We don't do.
-                    case 95: break; // Phaser effect depth. We don't do.
-                    case 98: Ch[MidCh].lastlrpn=value; Ch[MidCh].nrpn=true; break;
-                    case 99: Ch[MidCh].lastmrpn=value; Ch[MidCh].nrpn=true; break;
-                    case 100:Ch[MidCh].lastlrpn=value; Ch[MidCh].nrpn=false; break;
-                    case 101:Ch[MidCh].lastmrpn=value; Ch[MidCh].nrpn=false; break;
-                    case 113: break; // Related to pitch-bender, used by missimp.mid in Duke3D
-                    case  6: SetRPN(MidCh, value, true); break;
-                    case 38: SetRPN(MidCh, value, false); break;
-                    default:
-                        UI.PrintLn("Ctrl %d <- %d (ch %u)", ctrlno, value, MidCh);
-                }
+                ControllerChange(MidCh, ctrlno, value);
                 break;
             }
             case 0xC: // Patch change
-                Ch[MidCh].patch = TrackData[tk][CurrentPosition.track[tk].ptr++];
+                PatchChange(MidCh, TrackData[tk][CurrentPosition.track[tk].ptr++]);
                 break;
             case 0xD: // Channel after-touch
             {
-                // TODO: Verify, is this correct action?
                 int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                for(MIDIchannel::activenoteiterator
-                    i = Ch[MidCh].activenotes.begin();
-                    i != Ch[MidCh].activenotes.end();
-                    ++i)
-                {
-                    // Set this pressure to all active notes on the channel
-                    i->second.vol = vol;
-                }
-                NoteUpdate_All(MidCh, Upd_Volume);
+                ChannelAfterTouch(MidCh, vol);
                 break;
             }
             case 0xE: // Wheel/pitch bend
             {
                 int a = TrackData[tk][CurrentPosition.track[tk].ptr++];
                 int b = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                Ch[MidCh].bend = (a + b*128 - 8192) * Ch[MidCh].bendsense;
-                NoteUpdate_All(MidCh, Upd_Pitch);
+                WheelPitchBend(MidCh, a, b);
                 break;
             }
         }
@@ -2088,6 +1855,7 @@ private:
         }
     }
 
+    // Start specific MIDI Event handlers
     void NoteOff(unsigned MidCh, int note)
     {
         MIDIchannel::activenoteiterator
@@ -2096,6 +1864,275 @@ private:
         {
             NoteUpdate(MidCh, i, Upd_Off);
         }
+    }
+
+    void NoteOn(int MidCh, int note, int vol)
+    {
+        NoteOff(MidCh, note);
+        // On Note on, Keyoff the note first, just in case keyoff
+        // was omitted; this fixes Dance of sugar-plum fairy
+        // by Microsoft. Now that we've done a Keyoff,
+        // check if we still need to do a Keyon.
+        // vol=0 and event 8x are both Keyoff-only.
+        if(vol == 0) return;
+
+        unsigned midiins = Ch[MidCh].patch;
+        if(MidCh%16 == 9) midiins = 128 + note; // Percussion instrument
+
+        /*
+        if(MidCh%16 == 9 || (midiins != 32 && midiins != 46 && midiins != 48 && midiins != 50))
+            break; // HACK
+        if(midiins == 46) vol = (vol*7)/10;          // HACK
+        if(midiins == 48 || midiins == 50) vol /= 4; // HACK
+        */
+        //if(midiins == 56) vol = vol*6/10; // HACK
+
+        static std::set<unsigned> bank_warnings;
+        if(Ch[MidCh].bank_msb)
+        {
+            unsigned bankid = midiins + 256*Ch[MidCh].bank_msb;
+            std::set<unsigned>::iterator
+                i = bank_warnings.lower_bound(bankid);
+            if(i == bank_warnings.end() || *i != bankid)
+            {
+                UI.PrintLn("[%u]Bank %u undefined, patch=%c%u",
+                    MidCh,
+                    Ch[MidCh].bank_msb,
+                    (midiins&128)?'P':'M', midiins&127);
+                bank_warnings.insert(i, bankid);
+            }
+        }
+        if(Ch[MidCh].bank_lsb)
+        {
+            unsigned bankid = Ch[MidCh].bank_lsb*65536;
+            std::set<unsigned>::iterator
+                i = bank_warnings.lower_bound(bankid);
+            if(i == bank_warnings.end() || *i != bankid)
+            {
+                UI.PrintLn("[%u]Bank lsb %u undefined",
+                    MidCh,
+                    Ch[MidCh].bank_lsb);
+                bank_warnings.insert(i, bankid);
+            }
+        }
+
+        int meta = banks[AdlBank][midiins];
+        int tone = note;
+        if(adlins[meta].tone)
+        {
+            if(adlins[meta].tone < 20)
+                tone += adlins[meta].tone;
+            else if(adlins[meta].tone < 128)
+                tone = adlins[meta].tone;
+            else
+                tone -= adlins[meta].tone-128;
+        }
+        int i[2] = { adlins[meta].adlno1, adlins[meta].adlno2 };
+        bool pseudo_4op = adlins[meta].flags & adlinsdata::Flag_Pseudo4op;
+
+        if(AdlPercussionMode && PercussionMap[midiins & 0xFF]) i[1] = i[0];
+
+        static std::set<unsigned char> missing_warnings;
+        if(!missing_warnings.count(midiins) && (adlins[meta].flags & adlinsdata::Flag_NoSound))
+        {
+            UI.PrintLn("[%i]Playing missing instrument %i", MidCh, midiins);
+            missing_warnings.insert(midiins);
+        }
+
+        // Allocate AdLib channel (the physical sound channel for the note)
+        int adlchannel[2] = { -1, -1 };
+        for(unsigned ccount = 0; ccount < 2; ++ccount)
+        {
+            if(ccount == 1)
+            {
+                if(i[0] == i[1]) break; // No secondary channel
+                if(adlchannel[0] == -1) break; // No secondary if primary failed
+            }
+
+            int c = -1;
+            long bs = -0x7FFFFFFFl;
+            for(int a = 0; a < (int)opl.NumChannels; ++a)
+            {
+                if(ccount == 1 && a == adlchannel[0]) continue;
+                // ^ Don't use the same channel for primary&secondary
+
+                if(i[0] == i[1] || pseudo_4op)
+                {
+                    // Only use regular channels
+                    int expected_mode = 0;
+                    if(AdlPercussionMode)
+                        expected_mode = PercussionMap[midiins & 0xFF];
+                    if(opl.four_op_category[a] != expected_mode)
+                        continue;
+                }
+                else
+                {
+                    if(ccount == 0)
+                    {
+                        // Only use four-op master channels
+                        if(opl.four_op_category[a] != 1)
+                            continue;
+                    }
+                    else
+                    {
+                        // The secondary must be played on a specific channel.
+                        if(a != adlchannel[0] + 3)
+                            continue;
+                    }
+                }
+
+                long s = CalculateAdlChannelGoodness(a, i[ccount], MidCh);
+                if(s > bs) { bs=s; c = a; } // Best candidate wins
+            }
+
+            if(c < 0)
+            {
+                //UI.PrintLn("ignored unplaceable note");
+                continue; // Could not play this note. Ignore it.
+            }
+            PrepareAdlChannelForNewNote(c, i[ccount]);
+            adlchannel[ccount] = c;
+        }
+        if(adlchannel[0] < 0 && adlchannel[1] < 0)
+        {
+            // The note could not be played, at all.
+            return;
+        }
+        //UI.PrintLn("i1=%d:%d, i2=%d:%d", i[0],adlchannel[0], i[1],adlchannel[1]);
+
+        // Allocate active note for MIDI channel
+        std::pair<MIDIchannel::activenoteiterator,bool>
+            ir = Ch[MidCh].activenotes.insert(
+                std::make_pair(note, MIDIchannel::NoteInfo()));
+        ir.first->second.vol     = vol;
+        ir.first->second.tone    = tone;
+        ir.first->second.midiins = midiins;
+        ir.first->second.insmeta = meta;
+        for(unsigned ccount=0; ccount<2; ++ccount)
+        {
+            int c = adlchannel[ccount];
+            if(c < 0) continue;
+            ir.first->second.phys[ adlchannel[ccount] ] = i[ccount];
+        }
+        CurrentPosition.began  = true;
+        NoteUpdate(MidCh, ir.first, Upd_All | Upd_Patch);
+    }
+
+    void NoteTouch(int MidCh, int note, int vol)
+    {
+        MIDIchannel::activenoteiterator
+            i = Ch[MidCh].activenotes.find(note);
+        if(i == Ch[MidCh].activenotes.end())
+        {
+            // Ignore touch if note is not active
+            return;
+        }
+        i->second.vol = vol;
+        NoteUpdate(MidCh, i, Upd_Volume);
+    }
+
+    void ControllerChange(int MidCh, int ctrlno, int value)
+    {
+        switch(ctrlno)
+        {
+            case 1: // Adjust vibrato
+                //UI.PrintLn("%u:vibrato %d", MidCh,value);
+                Ch[MidCh].vibrato = value; break;
+            case 0: // Set bank msb (GM bank)
+                Ch[MidCh].bank_msb = value;
+                break;
+            case 32: // Set bank lsb (XG bank)
+                Ch[MidCh].bank_lsb = value;
+                break;
+            case 5: // Set portamento msb
+                Ch[MidCh].portamento = (Ch[MidCh].portamento & 0x7F) | (value<<7);
+                UpdatePortamento(MidCh);
+                break;
+            case 37: // Set portamento lsb
+                Ch[MidCh].portamento = (Ch[MidCh].portamento & 0x3F80) | (value);
+                UpdatePortamento(MidCh);
+                break;
+            case 65: // Enable/disable portamento
+                // value >= 64 ? enabled : disabled
+                //UpdatePortamento(MidCh);
+                break;
+            case 7: // Change volume
+                Ch[MidCh].volume = value;
+                NoteUpdate_All(MidCh, Upd_Volume);
+                break;
+            case 64: // Enable/disable sustain
+                Ch[MidCh].sustain = value;
+                if(!value) KillSustainingNotes( MidCh );
+                break;
+            case 11: // Change expression (another volume factor)
+                Ch[MidCh].expression = value;
+                NoteUpdate_All(MidCh, Upd_Volume);
+                break;
+            case 10: // Change panning
+                Ch[MidCh].panning = 0x00;
+                if(value  < 64+32) Ch[MidCh].panning |= 0x10;
+                if(value >= 64-32) Ch[MidCh].panning |= 0x20;
+                NoteUpdate_All(MidCh, Upd_Pan);
+                break;
+            case 121: // Reset all controllers
+                Ch[MidCh].bend       = 0;
+                Ch[MidCh].volume     = 100;
+                Ch[MidCh].expression = 100;
+                Ch[MidCh].sustain    = 0;
+                Ch[MidCh].vibrato    = 0;
+                Ch[MidCh].vibspeed   = 2*3.141592653*5.0;
+                Ch[MidCh].vibdepth   = 0.5/127;
+                Ch[MidCh].vibdelay   = 0;
+                Ch[MidCh].panning    = 0x30;
+                Ch[MidCh].portamento = 0;
+                UpdatePortamento(MidCh);
+                NoteUpdate_All(MidCh, Upd_Pan+Upd_Volume+Upd_Pitch);
+                // Kill all sustained notes
+                KillSustainingNotes(MidCh);
+                break;
+            case 123: // All notes off
+                NoteUpdate_All(MidCh, Upd_Off);
+                break;
+            case 91: break; // Reverb effect depth. We don't do per-channel reverb.
+            case 92: break; // Tremolo effect depth. We don't do...
+            case 93: break; // Chorus effect depth. We don't do.
+            case 94: break; // Celeste effect depth. We don't do.
+            case 95: break; // Phaser effect depth. We don't do.
+            case 98: Ch[MidCh].lastlrpn=value; Ch[MidCh].nrpn=true; break;
+            case 99: Ch[MidCh].lastmrpn=value; Ch[MidCh].nrpn=true; break;
+            case 100:Ch[MidCh].lastlrpn=value; Ch[MidCh].nrpn=false; break;
+            case 101:Ch[MidCh].lastmrpn=value; Ch[MidCh].nrpn=false; break;
+            case 113: break; // Related to pitch-bender, used by missimp.mid in Duke3D
+            case  6: SetRPN(MidCh, value, true); break;
+            case 38: SetRPN(MidCh, value, false); break;
+            default:
+                UI.PrintLn("Ctrl %d <- %d (ch %u)", ctrlno, value, MidCh);
+        }
+    }
+
+    void PatchChange(int MidCh, int patch)
+    {
+        Ch[MidCh].patch = patch;
+    }
+
+    void ChannelAfterTouch(int MidCh, int vol)
+    {
+        // TODO: Verify, is this correct action?
+        for(MIDIchannel::activenoteiterator
+            i = Ch[MidCh].activenotes.begin();
+            i != Ch[MidCh].activenotes.end();
+            ++i)
+        {
+            // Set this pressure to all active notes on the channel
+            i->second.vol = vol;
+        }
+        NoteUpdate_All(MidCh, Upd_Volume);
+    }
+
+    void WheelPitchBend(int MidCh, int a, int b)
+    {
+        Ch[MidCh].bend = (a + b*128 - 8192) * Ch[MidCh].bendsense;
+        NoteUpdate_All(MidCh, Upd_Pitch);
     }
 
     void UpdateVibrato(double amount)
