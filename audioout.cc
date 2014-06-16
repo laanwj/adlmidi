@@ -323,13 +323,6 @@ void StartAudio()
 
 void SendStereoAudio(unsigned long count, int* samples)
 {
-    if(count % 2 == 1)
-    {
-        // An uneven number of samples? To avoid complicating matters,
-        // just ignore the odd sample.
-        count   -= 1;
-        samples += 1;
-    }
     if(!count) return;
 
     // Attempt to filter out the DC component. However, avoid doing
