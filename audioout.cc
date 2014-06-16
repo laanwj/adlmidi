@@ -29,6 +29,9 @@
 #include "config.hh"
 #include "ui.hh"
 
+// Comment this out to disable reverb and other postprocessing of the audio
+#define USE_REVERB
+
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
     float feedback, hf_damping, gain;
@@ -324,7 +327,7 @@ void StartAudio()
 void SendStereoAudio(unsigned long count, int* samples)
 {
     if(!count) return;
-
+#ifdef USE_REVERB
     // Attempt to filter out the DC component. However, avoid doing
     // sudden changes to the offset, for it can be audible.
     double average[2]={0,0};
@@ -463,6 +466,19 @@ void SendStereoAudio(unsigned long count, int* samples)
 #else
     if(!WritePCMfile)
         WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], 2*AudioBuffer.size());
+#endif
+#else
+    AudioBuffer_lock.Lock();
+    size_t pos = AudioBuffer.size();
+    AudioBuffer.resize(pos + count*2);
+    for(unsigned long p = 0; p < count*2; ++p)
+    {
+        int out = samples[p];
+        AudioBuffer[pos+p] =
+            out<-32768 ? -32768 :
+            out>32767 ? 32767 : out;
+    }
+    AudioBuffer_lock.Unlock();
 #endif
 }
 
