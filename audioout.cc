@@ -30,7 +30,7 @@
 #include "ui.hh"
 
 // Comment this out to disable reverb and other postprocessing of the audio
-#define USE_REVERB
+// #define USE_REVERB
 
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
