@@ -19,6 +19,17 @@ public:
     ~MutexType() { SDL_DestroyMutex(mut); }
     void Lock() { SDL_mutexP(mut); }
     void Unlock() { SDL_mutexV(mut); }
+
+    friend class CondType;
+};
+class CondType
+{
+    SDL_cond* cond;
+public:
+    CondType() : cond(SDL_CreateCond()) { }
+    ~CondType() { SDL_DestroyCond(cond); }
+    void Signal() { SDL_CondSignal(cond); }
+    void Wait(MutexType &mutex) { SDL_CondWait(cond, mutex.mut); }
 };
 #endif
 

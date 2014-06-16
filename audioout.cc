@@ -29,10 +29,6 @@
 #include "config.hh"
 #include "ui.hh"
 
-#ifndef __WIN32__
-static SDL_AudioSpec obtained;
-#endif
-
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
     float feedback, hf_damping, gain;
@@ -255,8 +251,11 @@ namespace WindowsAudio
   }
 }
 #else
+static SDL_AudioSpec obtained;
 static std::deque<short> AudioBuffer;
 static MutexType AudioBuffer_lock;
+static CondType AudioBuffer_cond;
+
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
     SDL_LockAudio();
@@ -273,6 +272,7 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
     //fprintf(stderr, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
     AudioBuffer_lock.Unlock();
     SDL_UnlockAudio();
+    AudioBuffer_cond.Signal();
 }
 #endif // WIN32
 
@@ -469,16 +469,18 @@ void SendStereoAudio(unsigned long count, int* samples)
 void AudioWait(double OurHeadRoomLength)
 {
 #ifndef __WIN32__
-    while(AudioBuffer.size() > obtained.samples + (obtained.freq*2) * OurHeadRoomLength)
+    size_t min_samples = obtained.samples + (obtained.freq*2) * OurHeadRoomLength;
+    while(true)
     {
-        if(!WritePCMfile)
-            SDL_Delay(1); // std::min(10.0, 1e3 * eat_delay) );
-        else
+        AudioBuffer_lock.Lock();
+        size_t cursize = AudioBuffer.size();
+        if(cursize < min_samples)
         {
-            AudioBuffer_lock.Lock();
-            AudioBuffer.clear();
             AudioBuffer_lock.Unlock();
+            break;
         }
+        AudioBuffer_cond.Wait(AudioBuffer_lock);
+        AudioBuffer_lock.Unlock();
     }
 #else
     //Sleep(1e3 * eat_delay);
