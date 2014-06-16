@@ -269,9 +269,10 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
             len/4, (unsigned) AudioBuffer.size()/2);*/
     unsigned ate = len/2; // number of shorts
     if(ate > AudioBuffer.size()) ate = AudioBuffer.size();
-    for(unsigned a=0; a<ate; ++a)
-        target[a] = AudioBuffer[a];
-    AudioBuffer.erase(AudioBuffer.begin(), AudioBuffer.begin() + ate);
+    std::deque<short>::iterator i = AudioBuffer.begin();
+    for(unsigned a = 0; a < ate; ++a,++i)
+        target[a] = *i;
+    AudioBuffer.erase(AudioBuffer.begin(), i);
     //fprintf(stderr, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
     AudioBuffer_lock.Unlock();
     SDL_UnlockAudio();
@@ -469,14 +470,12 @@ void SendStereoAudio(unsigned long count, int* samples)
 #endif
 #else
     AudioBuffer_lock.Lock();
-    size_t pos = AudioBuffer.size();
-    AudioBuffer.resize(pos + count*2);
     for(unsigned long p = 0; p < count*2; ++p)
     {
         int out = samples[p];
-        AudioBuffer[pos+p] =
+        AudioBuffer.push_back(
             out<-32768 ? -32768 :
-            out>32767 ? 32767 : out;
+            out>32767 ? 32767 : out);
     }
     AudioBuffer_lock.Unlock();
 #endif
