@@ -31,6 +31,8 @@
 
 // Comment this out to disable reverb and other postprocessing of the audio
 // #define USE_REVERB
+// Frequency of volume updates in UI
+#define VOLUME_UPDATE_FREQ 24
 
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
@@ -328,28 +330,28 @@ void StartAudio()
 void SendStereoAudio(unsigned long count, int* samples)
 {
     if(!count) return;
-#ifdef USE_REVERB
     // Attempt to filter out the DC component. However, avoid doing
     // sudden changes to the offset, for it can be audible.
     double average[2]={0,0};
     for(unsigned w=0; w<2; ++w)
         for(unsigned long p = 0; p < count; ++p)
             average[w] += samples[p*2+w];
+    for(unsigned w=0; w<2; ++w)
+            average[w] /= double(count);
     static float prev_avg_flt[2] = {0,0};
     float average_flt[2] =
     {
-        prev_avg_flt[0] = (prev_avg_flt[0] + average[0]*0.04/double(count)) / 1.04,
-        prev_avg_flt[1] = (prev_avg_flt[1] + average[1]*0.04/double(count)) / 1.04
+        prev_avg_flt[0] = (prev_avg_flt[0] + average[0]*0.04) / 1.04,
+        prev_avg_flt[1] = (prev_avg_flt[1] + average[1]*0.04) / 1.04
     };
     // Figure out the amplitude of both channels
     static unsigned amplitude_display_counter = 0;
     if(!amplitude_display_counter--)
     {
-        amplitude_display_counter = (PCM_RATE / count) / 24;
+        amplitude_display_counter = (PCM_RATE / count) / VOLUME_UPDATE_FREQ;
         double amp[2]={0,0};
         for(unsigned w=0; w<2; ++w)
         {
-            average[w] /= double(count);
             for(unsigned long p = 0; p < count; ++p)
                 amp[w] += std::fabs(samples[p*2+w] - average[w]);
             amp[w] /= double(count);
@@ -360,7 +362,7 @@ void SendStereoAudio(unsigned long count, int* samples)
         }
         UI.IllustrateVolumes(amp[0], amp[1]);
     }
-
+#ifdef USE_REVERB
     //static unsigned counter = 0; if(++counter < 8000)  return;
 
 #if defined(__WIN32__) && 0
