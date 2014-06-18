@@ -296,6 +296,19 @@ struct FourChars
     }
 };
 
+// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+unsigned long upper_power_of_two(unsigned long v)
+{
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
 void InitializeAudio(double AudioBufferLength)
 {
 #ifndef __WIN32__
@@ -304,7 +317,7 @@ void InitializeAudio(double AudioBufferLength)
     spec.freq     = PCM_RATE;
     spec.format   = AUDIO_S16SYS;
     spec.channels = 2;
-    spec.samples  = spec.freq * AudioBufferLength;
+    spec.samples  = upper_power_of_two(spec.freq * AudioBufferLength);
     spec.callback = SDL_AudioCallback;
     if(SDL_OpenAudio(&spec, &obtained) < 0)
     {
