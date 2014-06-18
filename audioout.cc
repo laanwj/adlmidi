@@ -472,12 +472,15 @@ void SendStereoAudio(unsigned long count, int* samples)
 #endif
 #else
     AudioBuffer_lock.Lock();
-    for(unsigned long p = 0; p < count*2; ++p)
+    for(unsigned long p = 0; p < count; ++p)
     {
-        int out = samples[p];
-        AudioBuffer.push_back(
-            out<-32768 ? -32768 :
-            out>32767 ? 32767 : out);
+        for(unsigned w = 0; w < 2; ++w)
+        {
+            int out = samples[p*2 + w] - average_flt[w];
+            AudioBuffer.push_back(
+                out<-32768 ? -32768 :
+                out>32767 ? 32767 : out);
+        }
     }
     AudioBuffer_lock.Unlock();
 #endif
