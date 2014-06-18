@@ -38,9 +38,7 @@ volatile sig_atomic_t QuitFlag = false;
 
 static void TidyupAndExit(int)
 {
-    UI.ShowCursor();
-    UI.Color(7);
-    std::fflush(stderr);
+    UI.Cleanup();
     signal(SIGINT, SIG_DFL);
     raise(SIGINT);
 }
@@ -244,7 +242,7 @@ int main(int argc, char** argv)
     }
 
     ShutdownAudio();
-    // ALSA
     snd_seq_close(seq);
+    UI.Cleanup();
     return 0;
 }

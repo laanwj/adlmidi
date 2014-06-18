@@ -240,9 +240,7 @@ public:
 
 static void TidyupAndExit(int)
 {
-    UI.ShowCursor();
-    UI.Color(7);
-    std::fflush(stderr);
+    UI.Cleanup();
     signal(SIGINT, SIG_DFL);
     raise(SIGINT);
 }
@@ -345,6 +343,7 @@ int main(int argc, char** argv)
     }
 
     ShutdownAudio();
+    UI.Cleanup();
 
     return 0;
 }

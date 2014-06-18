@@ -30,6 +30,8 @@ public:
     void Color(int newcolor);
     // Choose a permanent color for given instrument
     int AllocateColor(int ins);
+    // Cleanup before exit
+    void Cleanup();
 
 private:
     void prn(const char* fmt, ...);

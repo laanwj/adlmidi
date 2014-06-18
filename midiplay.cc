@@ -398,8 +398,7 @@ private:
 
 static void TidyupAndExit(int)
 {
-    UI.ShowCursor();
-    UI.Color(7);
+    UI.Cleanup();
     std::fflush(stderr);
     signal(SIGINT, SIG_DFL);
     raise(SIGINT);
@@ -510,6 +509,7 @@ int main(int argc, char** argv)
     }
 
     ShutdownAudio();
+    UI.Cleanup();
 
     return 0;
 }

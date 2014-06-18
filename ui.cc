@@ -296,5 +296,16 @@ void UI::prn(const char* fmt, ...)
     va_end(ap);
 }
 
+void UI::Cleanup()
+{
+    ShowCursor();
+#ifdef __WIN32__
+    Color(7);
+#else
+    prn("\33[0m");
+#endif
+    std::fflush(stderr);
+}
+
 class UI UI;
 
