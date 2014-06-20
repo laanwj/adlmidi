@@ -714,7 +714,8 @@ void MIDIeventhandler::UpdatePortamento(unsigned MidCh)
     double mt = std::exp(0.00033845077 * Ch[MidCh].portamento);
     NoteUpdate_All(MidCh, Upd_Pitch);
     */
-    UI.PrintLn("Portamento %u: %u (unimplemented)", MidCh, Ch[MidCh].portamento);
+    if(Ch[MidCh].portamento)
+        UI.PrintLn("Portamento %u: %u (unimplemented)", MidCh, Ch[MidCh].portamento);
 }
 
 void MIDIeventhandler::NoteUpdate_All(unsigned MidCh, unsigned props_mask)
