@@ -75,7 +75,7 @@ class MIDIeventhandler
             // Current pressure
             unsigned char  vol;
             // Tone selected on noteon:
-            unsigned short tone;
+            short tone;
             // Patch selected on noteon; index to banks[AdlBank][]
             unsigned char midiins;
             // Index to physical adlib data structure, adlins[]
