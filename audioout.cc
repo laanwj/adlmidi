@@ -260,6 +260,8 @@ static SDL_AudioSpec obtained;
 static std::deque<short> AudioBuffer;
 static MutexType AudioBuffer_lock;
 static CondType AudioBuffer_cond;
+static size_t min_samples;
+static bool audio_started;
 
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
@@ -307,7 +309,7 @@ unsigned long upper_power_of_two(unsigned long v)
     return v;
 }
 
-void InitializeAudio(double AudioBufferLength)
+void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
 {
 #ifndef __WIN32__
     // Set up SDL
@@ -326,6 +328,8 @@ void InitializeAudio(double AudioBufferLength)
         std::fprintf(stderr, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
+    min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
+    audio_started = false;
 #endif
 }
 
@@ -334,7 +338,6 @@ void StartAudio()
 #ifdef __WIN32
     WindowsAudio::Open(PCM_RATE, 2, 16);
 #else
-    SDL_PauseAudio(0);
 #endif
 }
 
@@ -493,14 +496,21 @@ void SendStereoAudio(unsigned long count, int* samples)
                 out>32767 ? 32767 : out);
         }
     }
+    size_t cursize = AudioBuffer.size();
     AudioBuffer_lock.Unlock();
+
+    /* Start SDL audio processing when we have enough samples */
+    if(!audio_started && cursize >= min_samples)
+    {
+        audio_started = true;
+        SDL_PauseAudio(0);
+    }
 #endif
 }
 
-void AudioWait(double OurHeadRoomLength)
+void AudioWait()
 {
 #ifndef __WIN32__
-    size_t min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
     while(true)
     {
         AudioBuffer_lock.Lock();

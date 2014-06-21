@@ -283,7 +283,7 @@ int main(int argc, char** argv)
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
 
-    InitializeAudio(AudioBufferLength);
+    InitializeAudio(AudioBufferLength, OurHeadRoomLength);
     int rv = ParseArguments(argc, argv);
     if(rv >= 0)
         return rv;
@@ -334,7 +334,7 @@ int main(int argc, char** argv)
             /* Process it */
             SendStereoAudio(n_samples, &sample_buf[0]);
 
-            AudioWait(OurHeadRoomLength);
+            AudioWait();
         }
         double nextdelay = InstrumentTester.Tick(eat_delay, mindelay);
         UI.ShowCursor();
