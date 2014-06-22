@@ -103,7 +103,7 @@ int ParseArguments(int argc, char **argv)
             std::fprintf(stderr, "bank number may only be 0..%u.\n", NumBanks-1);
             return 0;
         }
-        std::printf("FM instrument bank %u selected.\n", AdlBank);
+        std::printf("FM instrument bank %u '%s' selected.\n", AdlBank, banknames[AdlBank]);
     }
 
     unsigned n_fourop[2] = {0,0}, n_total[2] = {0,0};
