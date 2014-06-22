@@ -1021,6 +1021,10 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
             if(value >= 64-32) Ch[MidCh].panning |= 0x20;
             NoteUpdate_All(MidCh, Upd_Pan);
             break;
+        case 120: // All sounds off
+            NoteUpdate_All(MidCh, Upd_Off);
+            KillSustainingNotes( MidCh );
+            break;
         case 121: // Reset all controllers
             Ch[MidCh].bend       = 0;
             Ch[MidCh].volume     = 100;
