@@ -1,5 +1,7 @@
 #!/usr/bin/python3
-# Determine ASCII/unicode symbols for midi instruments
+'''Determine ASCII/unicode symbols for midi instruments'''
+from collections import defaultdict
+
 MIDIsymbols_orig = (
 "PPPPPPhcckmvmxbd" # Ins  0-15
 "oooooahoGGGGGGGG" # Ins 16-31
@@ -31,8 +33,8 @@ MIDIsymbols = (
 "????????????????" # Prc 16-31
 "???DDshMhhhCCCbM" # Prc 32-47
 "CBDMMDDDMMDDDDDD" # Prc 48-63
-"DDDDDDDDDDDDDD??" # Prc 64-79
-"????????????????" # Prc 80-95
+"DDDDDDDDDDDDDDDD" # Prc 64-79
+"DD??????????????" # Prc 80-95
 "????????????????" # Prc 96-111
 "????????????????" # Prc 112-127
 )
@@ -221,6 +223,7 @@ GMP = {
 }
 
 if __name__ == '__main__':
+    syms = defaultdict(int)
     for ins,ch in enumerate(MIDIsymbols):
         name = None
         if ins < 128:
@@ -228,4 +231,12 @@ if __name__ == '__main__':
         else:
             name = GMP.get(ins-128)
 
+        syms[ins>=128,ch] += 1
+
         print('%3i %s %s' % (ins,ch,name))
+    print()
+    print('Symbol counts')
+    print()
+    for key in sorted(syms.keys()):
+        count = syms[key]
+        print('%i:%s %i' % (int(key[0]), key[1], count))
