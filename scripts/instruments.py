@@ -1,25 +1,10 @@
 #!/usr/bin/python3
 '''Determine ASCII/unicode symbols for midi instruments'''
 from collections import defaultdict
-
-MIDIsymbols_orig = (
-"PPPPPPhcckmvmxbd" # Ins  0-15
-"oooooahoGGGGGGGG" # Ins 16-31
-"BBBBBBBVVVVVHHMS" # Ins 32-47
-"SSSOOOcTTTTTTTTX" # Ins 48-63
-"XXXTTTFFFFFFFFFL" # Ins 64-79
-"LLLLLLLppppppppX" # Ins 80-95
-"XXXXXXXGGGGGTSSb" # Ins 96-111
-"bbbMMMcGXXXXXXXD" # Ins 112-127
-"????????????????" # Prc 0-15
-"????????????????" # Prc 16-31
-"???DDshMhhhCCCbM" # Prc 32-47
-"CBDMMDDDMMDDDDDD" # Prc 48-63
-"DDDDDDDDDDDDDD??" # Prc 64-79
-"????????????????" # Prc 80-95
-"????????????????" # Prc 96-111
-"????????????????" # Prc 112-127
-)
+# Ideas:
+#   fix attributes per glyph
+#   background color (dark grey, grey, ...)
+#   256 colors
 MIDIsymbols = (
 "PPPPPPhcckmvmxbd" # Ins  0-15
 "oooooahoGGGGGGGG" # Ins 16-31
@@ -30,11 +15,11 @@ MIDIsymbols = (
 "XXXXXXXXGGGGGTSS" # Ins 96-111
 "bbbbMMMcGXXXXXXX" # Ins 112-127
 "????????????????" # Prc 0-15
-"????????????????" # Prc 16-31
-"???DDshMhhhCCCbM" # Prc 32-47
+"???????????DDDDD" # Prc 16-31
+"DDDDDshMhhhCCCbM" # Prc 32-47
 "CBDMMDDDMMDDDDDD" # Prc 48-63
 "DDDDDDDDDDDDDDDD" # Prc 64-79
-"DD??????????????" # Prc 80-95
+"DDDDDDDD????????" # Prc 80-95
 "????????????????" # Prc 96-111
 "????????????????" # Prc 112-127
 )
@@ -239,7 +224,12 @@ GMP = {
  87: 'Open Surdo'
 }
 
+def compute_intensity(rr,gg,bb):
+    #return 0.2125 * rr + 0.7154 * gg + 0.0721 * bb
+    return rr + gg + bb
+
 if __name__ == '__main__':
+    import random
     syms = defaultdict(int)
     for ins,ch in enumerate(MIDIsymbols):
         name = None
@@ -250,10 +240,73 @@ if __name__ == '__main__':
 
         syms[ins>=128,ch] += 1
 
-        print('%3i %s %s' % (ins,ch,name))
+        #print('%3i %s %s' % (ins,ch,name))
     print()
     print('Symbol counts')
     print()
     for key in sorted(syms.keys()):
         count = syms[key]
         print('%i:%s %i' % (int(key[0]), key[1], count))
+
+    # color allocation: make list of colors
+    colors = []
+    for r in range(0,6):
+        for g in range(0,6):
+            for b in range(0,6):
+                rr = r / 5.0
+                gg = g / 5.0
+                bb = b / 5.0
+                intensity = compute_intensity(rr,gg,bb)
+                colid = 16+r*36+g*6+b
+                colors.append((intensity, colid, rr, gg, bb))
+    for i in range(0,24):
+        rr = gg = bb = (8 + i * 10) / 255.0
+        intensity = compute_intensity(rr,gg,bb)
+        colid = i + 232
+        colors.append((intensity, colid, rr, gg, bb))
+    # sort by intensity
+    colors.sort()
+
+    # filter by intensity
+    available_colors = []
+    nomono = False # no monochrome
+    for (intensity, colid, r, g, b) in colors:
+        if nomono:
+            if intensity >= 0.25 and r!=g and g!=b:
+                available_colors.append((intensity, colid, r, g, b))
+        else:
+            if intensity >= 0.25:
+                available_colors.append((intensity, colid, r, g, b))
+    
+    #for (intensity, colid, r, g, b) in available_colors:
+    #    print('\x1b[0;38;5;%im %.02f %.02f %.02f = %3i  int=%f\x1b[0m' % (colid,r,g,b,colid,intensity))
+
+    available = [colid for (_, colid, _, _, _) in available_colors]
+    split = len(available)//2
+    all_colors = [available[split:], available[0:split]]
+    
+    print('Available colors')
+    print('instruments (%i): ' % len(all_colors[0]))
+    print(''.join(('\x1b[0;38;5;%imX\x1b[0m' % (colid)) for colid in all_colors[0]))
+    print('drums (%i): ' % len(all_colors[1]))
+    print(''.join(('\x1b[0;38;5;%imD\x1b[0m' % (colid)) for colid in all_colors[1]))
+
+    # Color allocation
+    available = {}
+    for key in sorted(syms.keys()):
+        colors = all_colors[key[0]][:]
+        random.shuffle(colors)
+        available[key] = colors
+
+    print('Assigned:')
+    for ins,ch in enumerate(MIDIsymbols):
+        name = None
+        if ins < 128:
+            name = GMI.get(ins)
+        else:
+            name = GMP.get(ins-128)
+
+        color = available[ins>=128,ch].pop()
+
+        print('%3i \x1b[0;38;5;%im%s\x1b[0m %s' % (ins,color,ch,name))
+    
