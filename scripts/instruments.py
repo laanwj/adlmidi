@@ -173,6 +173,16 @@ GMI = {
 
 # General Midi Percussion
 GMP = {
+ # GS extensions
+ 27: 'High Q',
+ 28: 'Slap',
+ 29: 'Scratch Push',
+ 30: 'Scratch Pull',
+ 31: 'Sticks',
+ 32: 'Square Click',
+ 33: 'Metronome Click',
+ 34: 'Metronome Bell',
+ # GM
  35: 'Acoustic Bass Drum',
  36: 'Bass Drum 1',
  37: 'Side Stick',
@@ -219,7 +229,14 @@ GMP = {
  78: 'Mute Cuica',
  79: 'Open Cuica',
  80: 'Mute Triangle',
- 81: 'Open Triangle'
+ 81: 'Open Triangle',
+ # GS extensions
+ 82: 'Shaker',
+ 83: 'Jingle Bell',
+ 84: 'Belltree',
+ 85: 'Castanets',
+ 86: 'Mute Surdo',
+ 87: 'Open Surdo'
 }
 
 if __name__ == '__main__':
