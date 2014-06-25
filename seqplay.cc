@@ -174,9 +174,6 @@ int main(int argc, char** argv)
     if(rv >= 0)
         return rv;
 
-    MIDIeventhandler evh;
-    evh.Reset();
-
     const unsigned long n_samples = MaxSamplesAtTime;
     const double delay = n_samples / (double)PCM_RATE;
 
@@ -192,6 +189,9 @@ int main(int argc, char** argv)
         printf("Waiting for data at port %d:0.",
                snd_seq_client_id(seq));
     printf("\n");
+
+    MIDIeventhandler evh;
+    evh.Reset();
 
     StartAudio();
     while( !QuitFlag )

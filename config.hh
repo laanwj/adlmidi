@@ -4,6 +4,8 @@
 static const unsigned long PCM_RATE = 48000;
 static const unsigned MaxCards = 100;
 static const unsigned MaxSamplesAtTime = 512; // 512=dbopl limitation
+static const unsigned MaxWidth = 160;
+static const unsigned MaxHeight = 1 + 23*MaxCards;
 
 extern unsigned AdlBank;
 extern unsigned NumFourOps;

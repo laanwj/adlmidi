@@ -826,6 +826,7 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
 
     unsigned midiins = Ch[MidCh].patch;
     if(MidCh%16 == 9) midiins = 128 + note; // Percussion instrument
+    UI.IllustratePatchChange(MidCh, midiins);
 
     /*
     if(MidCh%16 == 9 || (midiins != 32 && midiins != 46 && midiins != 48 && midiins != 50))
@@ -1064,6 +1065,7 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
 void MIDIeventhandler::PatchChange(int MidCh, int patch)
 {
     Ch[MidCh].patch = patch;
+    UI.IllustratePatchChange(MidCh, patch);
 }
 
 void MIDIeventhandler::ChannelAfterTouch(int MidCh, int vol)
@@ -1167,5 +1169,7 @@ void MIDIeventhandler::Tick(double s)
 void MIDIeventhandler::SetNumChannels(int channels)
 {
     Ch.resize(channels);
+    for(int ch=0; ch<channels; ++ch)
+        UI.IllustratePatchChange(ch, -1);
 }
 

@@ -10,9 +10,10 @@ public:
     void* handle;
   #endif
     int x, y, color, txtline, maxy;
-    char background[80][1 + 23*MaxCards];
-    char slots[80][1 + 23*MaxCards];
-    unsigned char slotcolors[80][1 + 23*MaxCards];
+    char background[MaxWidth][MaxHeight];
+    char slots[MaxWidth][MaxHeight];
+    unsigned char slotcolors[MaxWidth][MaxHeight];
+    short curpatch[MaxHeight];
     bool cursor_visible;
 public:
     UI();
@@ -22,6 +23,7 @@ public:
     void IllustrateNote(int adlchn, int note, int ins, int pressure, double bend);
     void Draw(int notex,int notey, int color, char ch);
     void IllustrateVolumes(double left, double right);
+    void IllustratePatchChange(int MidCh, int patch);
     // Move tty cursor to the indicated position.
     // Movements will be done in relative terms
     // to the current cursor position only.

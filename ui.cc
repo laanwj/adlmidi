@@ -78,6 +78,9 @@ UI::UI(): x(0), y(0), color(-1), txtline(1),
     std::fputc('\r', stderr); // Ensure cursor is at x=0
     GotoXY(0,0); Color(15);
     prn("Hit Ctrl-C to quit\r");
+
+    for(unsigned ch=0; ch<MaxHeight; ++ch)
+        curpatch[ch] = -1;
 }
 void UI::HideCursor()
 {
@@ -210,6 +213,33 @@ void UI::IllustrateVolumes(double left, double right)
                         : 10 : (c=='.' ? 1 : 8),
                  c);
         }
+}
+
+void UI::IllustratePatchChange(int MidCh, int patch)
+{
+    if(MidCh < 0 || MidCh >= (int)WinHeight() || (patch != -1 && curpatch[MidCh] == patch))
+        return;
+    curpatch[MidCh] = patch;
+    Draw(81,MidCh+1, 8, '0' + (MidCh / 10));
+    Draw(82,MidCh+1, 8, '0' + (MidCh % 10));
+    if(patch == -1)
+    {
+        Draw(84,MidCh+1, 1, '-');
+        Draw(85,MidCh+1, 1, '-');
+        Draw(86,MidCh+1, 1, '-');
+        Draw(88,MidCh+1, 1, '-');
+        Draw(89,MidCh+1, 1, '-');
+        Draw(90,MidCh+1, 1, '-');
+    }
+    else
+    {
+        Draw(84,MidCh+1, 8, '0' + ((patch/100) % 10));
+        Draw(85,MidCh+1, 8, '0' + ((patch/10) % 10));
+        Draw(86,MidCh+1, 8, '0' + ((patch) % 10));
+        Draw(88,MidCh+1, 1, '[');
+        Draw(89,MidCh+1, AllocateColor(patch), MIDIsymbols[patch]);
+        Draw(90,MidCh+1, 1, ']');
+    }
 }
 
 // Move tty cursor to the indicated position.
