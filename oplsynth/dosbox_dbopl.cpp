@@ -41,7 +41,7 @@ typedef struct vswprintf {} swprintf;
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include "dbopl.h"
+#include "dosbox_dbopl.h"
 
 
 #ifndef PI

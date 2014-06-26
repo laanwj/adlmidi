@@ -93,7 +93,8 @@ ARCHFILES=\
 INSTALLPROGS=adlmidi
 OPLSYNTH_OBJS=oplsynth/fmopl.o \
 	oplsynth/OPL3.o \
-	oplsynth/dosbox_opl.o
+	oplsynth/dosbox_opl.o \
+	oplsynth/dosbox_dbopl.o
 
 all: adlmidi gen_adldata dumpmiles dumpbank adlseq adltester
 
@@ -103,7 +104,7 @@ adlmidi: midiplay.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_O
 adlseq: seqplay.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
-adltester: adltester.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
+adltester: adltester.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
 midiplay.o: midiplay.cc adldata.hh
@@ -115,19 +116,16 @@ seqplay.o: seqplay.cc adldata.hh
 midievt.o: midievt.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
-ui.o: ui.cc dbopl.h adldata.hh
+ui.o: ui.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
-
-dbopl.o: dbopl.cpp dbopl.h
-	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 adldata.o: adldata.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
-gen_adldata: gen_adldata.o dbopl.o
+gen_adldata: gen_adldata.o oplsynth/dosbox_dbopl.o
 	$(CXXLINK)  $^  $(DEBUG)  -o $@  $(LDLIBS)
 
-gen_adldata.o: gen_adldata.cc dbopl.h
+gen_adldata.o: gen_adldata.cc oplsynth/dosbox_dbopl.h
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 dumpmiles: dumpmiles.o
@@ -152,7 +150,7 @@ oplsynth/OPL3.o: oplsynth/OPL3.cpp
 oplsynth/dosbox_opl.o: oplsynth/dosbox_opl.cpp
 	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
 
-oplsynth/m_random.o: oplsynth/m_random.cpp
-	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
+oplsynth/dosbox_dbopl.o: oplsynth/dosbox_dbopl.cpp oplsynth/dosbox_dbopl.h
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 include depfun.mak

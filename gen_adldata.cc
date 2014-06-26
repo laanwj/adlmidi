@@ -964,7 +964,7 @@ static void LoadBisqwit(const char* fn, unsigned bank, const char* prefix)
     std::fclose(fp);
 }
 
-#include "dbopl.h"
+#include "oplsynth/dosbox_dbopl.h"
 
 std::vector<int> sampleBuf;
 static void AddMonoAudio(unsigned long count, int* samples)
