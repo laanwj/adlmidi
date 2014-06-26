@@ -264,11 +264,13 @@ void OPL3IF::Reset(bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
+    fullpan = false;
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
-	cards[a] = JavaOPLCreate(fullpan);
+	//cards[a] = JavaOPLCreate(fullpan);
 	//cards[a] = DBOPLCreate(fullpan);
+	cards[a] = DBOPLv2Create(fullpan);
         //cards[a] = YM3812Create(fullpan);
     }
 

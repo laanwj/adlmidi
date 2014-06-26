@@ -42,7 +42,7 @@ typedef struct vswprintf {} swprintf;
 #include <stdlib.h>
 #include <string.h>
 #include "dosbox_dbopl.h"
-
+#include "opl.h"
 
 #ifndef PI
 #define PI 3.14159265358979323846
@@ -1558,5 +1558,45 @@ void Handler::Init( Bitu rate ) {
 	chip.Setup( rate );
 }
 
+class DBOPLv2: public OPLEmul
+{
+private:
+	Chip chip;
+	bool fullpan;
+public:
+	void Reset()
+	{
+		chip.Setup(OPL_SAMPLE_RATE);
+	}
+	void Update(float* sndptr, int numsamples)
+	{
+		Bit32s buffer[ 512 * 2 ];
+		if ( GCC_UNLIKELY(numsamples > 512) )
+			numsamples = 512;
+		// Force OPL3/stereo samples
+		chip.GenerateBlock3( numsamples, buffer );
+		// Convert to floating point
+		const int stereosamples = numsamples*2;
+		for(int idx=0; idx<stereosamples; ++idx)
+			sndptr[idx] += buffer[idx] / 10240.0;
+	}
+	void WriteReg(int idx, int val)
+	{
+		chip.WriteReg(idx, val);
+	}
+	void SetPanning(int c, float left, float right)
+	{
+		// TODO
+	}
+	DBOPLv2(bool fullpan): fullpan(fullpan)
+	{
+		InitTables();
+	}
+};
 
 }		//Namespace DBOPL
+
+OPLEmul *DBOPLv2Create(bool fullpan)
+{
+	return new DBOPL::DBOPLv2(fullpan);
+}
