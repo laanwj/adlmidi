@@ -232,25 +232,44 @@ void OPL3IF::Patch(unsigned c, unsigned i)
         Poke(card, data[a]+o2, y&0xFF); y>>=8;
     }
 }
+static const float HALF_PI = 1.5707963267948966f;
 void OPL3IF::Pan(unsigned c, unsigned value)
 {
     unsigned card = c/23, cc = c%23;
+    unsigned bits = 0x00;
+    if(!fullpan)
+    {
+        // Binary panning
+        if(value  < 64+32) bits |= 0x10;
+        if(value >= 64-32) bits |= 0x20;
+    }
     if(Channels[cc] != 0xFFF)
-        Poke(card, 0xC0 + Channels[cc], adl[ins[c]].feedconn | value);
+        Poke(card, 0xC0 + Channels[cc], adl[ins[c]].feedconn | bits);
+    if(fullpan)
+    {
+        // Smooth panning (From zdoom)
+        // This is the MIDI-recommended pan formula. 0 and 1 are
+        // both hard left so that 64 can be perfectly center.
+        // (Note that the 'pan' passed to this function is the
+        // MIDI pan position, subtracted by 64.)
+        double level = (value <= 1) ? 0 : (value - 1) / 126.0;
+        cards[card]->SetPanning(cc, (float)cosf(HALF_PI * level), (float)sinf(HALF_PI * level));
+    }
 }
 void OPL3IF::Silence() // Silence all OPL channels.
 {
     for(unsigned c=0; c<NumChannels; ++c) { NoteOff(c); Touch_Real(c,0); }
 }
-void OPL3IF::Reset()
+void OPL3IF::Reset(bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
+    this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
-	cards[a] = JavaOPLCreate(false);
-	//cards[a] = DBOPLCreate(false);
-        //cards[a] = YM3812Create(false);
+	cards[a] = JavaOPLCreate(fullpan);
+	//cards[a] = DBOPLCreate(fullpan);
+        //cards[a] = YM3812Create(fullpan);
     }
 
     NumChannels = NumCards * 23;
@@ -1043,9 +1062,7 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
             NoteUpdate_All(MidCh, Upd_Volume);
             break;
         case 10: // Change panning
-            Ch[MidCh].panning = 0x00;
-            if(value  < 64+32) Ch[MidCh].panning |= 0x10;
-            if(value >= 64-32) Ch[MidCh].panning |= 0x20;
+            Ch[MidCh].panning = value;
             NoteUpdate_All(MidCh, Upd_Pan);
             break;
         case 120: // All sounds off
@@ -1175,8 +1192,7 @@ void MIDIeventhandler::HandleEvent(int chanofs, unsigned char byte, const unsign
 
 void MIDIeventhandler::Reset()
 {
-    opl.Reset(); // Reset AdLib
-    //opl.Reset(); // ...twice (just in case someone misprogrammed OPL3 previously)
+    opl.Reset(true); // Reset AdLib
     ch.clear();
     ch.resize(opl.NumChannels);
     Ch.clear();

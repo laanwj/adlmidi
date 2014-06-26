@@ -8,6 +8,7 @@ struct OPL3IF
     unsigned NumChannels;
 
     std::vector<OPLEmul*> cards;
+    bool fullpan;
 private:
     std::vector<unsigned short> ins; // index to adl[], cached, needed by Touch()
     std::vector<unsigned char> pit;  // value poked to B0, cached, needed by NoteOff)(
@@ -33,7 +34,7 @@ public:
     void Patch(unsigned c, unsigned i);
     void Pan(unsigned c, unsigned value);
     void Silence();
-    void Reset();
+    void Reset(bool fullpan);
     void Update(float *buffer, int length);
 };
 
