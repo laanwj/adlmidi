@@ -341,7 +341,7 @@ void StartAudio()
 #endif
 }
 
-void SendStereoAudio(unsigned long count, int* samples)
+void SendStereoAudio(unsigned long count, float* samples)
 {
     if(!count) return;
     // Attempt to filter out the DC component. However, avoid doing
@@ -369,6 +369,7 @@ void SendStereoAudio(unsigned long count, int* samples)
             for(unsigned long p = 0; p < count; ++p)
                 amp[w] += std::fabs(samples[p*2+w] - average[w]);
             amp[w] /= double(count);
+            amp[w] *= SAMPLE_MULT_FACTOR;
             // Turn into logarithmic scale
             const double dB = std::log(amp[w]<1 ? 1 : amp[w]) * 4.328085123;
             const double maxdB = 3*16; // = 3 * log2(65536)
@@ -490,7 +491,7 @@ void SendStereoAudio(unsigned long count, int* samples)
     {
         for(unsigned w = 0; w < 2; ++w)
         {
-            int out = samples[p*2 + w] - average_flt[w];
+            int out = (samples[p*2 + w] - average_flt[w]) * SAMPLE_MULT_FACTOR;
             AudioBuffer.push_back(
                 out<-32768 ? -32768 :
                 out>32767 ? 32767 : out);

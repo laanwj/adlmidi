@@ -103,10 +103,20 @@ static const unsigned short Channels[23] =
 
 */
 
+OPL3IF::~OPL3IF()
+{
+    Cleanup();
+}
+void OPL3IF::Cleanup()
+{
+    for(unsigned a=0; a<cards.size(); ++a)
+	delete cards[a];
+    cards.clear();
+}
 
 void OPL3IF::Poke(unsigned card, unsigned index, unsigned value)
 {
-    cards[card].WriteReg(index, value);
+    cards[card]->WriteReg(index, value);
 }
 void OPL3IF::NoteOff(unsigned c)
 {
@@ -234,7 +244,15 @@ void OPL3IF::Silence() // Silence all OPL channels.
 }
 void OPL3IF::Reset()
 {
+    Cleanup();
     cards.resize(NumCards);
+    for(unsigned a=0; a<NumCards; ++a)
+    {
+	cards[a] = JavaOPLCreate(false);
+	//cards[a] = DBOPLCreate(false);
+        //cards[a] = YM3812Create(false);
+    }
+
     NumChannels = NumCards * 23;
     ins.resize(NumChannels,     189);
     pit.resize(NumChannels,       0);
@@ -254,7 +272,7 @@ void OPL3IF::Reset()
     unsigned fours = NumFourOps;
     for(unsigned card=0; card<NumCards; ++card)
     {
-        cards[card].Init(PCM_RATE);
+        cards[card]->Reset();
         for(unsigned a=0; a< 18; ++a) Poke(card, 0xB0+Channels[a], 0x00);
         for(unsigned a=0; a< sizeof(data)/sizeof(*data); a+=2)
             Poke(card, data[a], data[a+1]);
@@ -325,6 +343,14 @@ void OPL3IF::Reset()
     */
 
     Silence();
+}
+
+void OPL3IF::Update(float *buffer, int length)
+{
+    for(unsigned card = 0; card < cards.size(); ++card)
+    {
+        cards[card]->Update(buffer, length);
+    }
 }
 
 MIDIeventhandler::MIDIchannel::MIDIchannel()

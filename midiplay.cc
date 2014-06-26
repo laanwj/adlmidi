@@ -465,40 +465,13 @@ int main(int argc, char** argv)
         carry += PCM_RATE * eat_delay;
         const unsigned long n_samples = (unsigned) carry;
         carry -= n_samples;
-
         if(SkipForward > 0)
             SkipForward -= 1;
         else
         {
-            if(NumCards == 1)
-            {
-                evh.opl.cards[0].Generate(0, SendStereoAudio, n_samples);
-            }
-            else if(n_samples > 0)
-            {
-                /* Mix together the audio from different cards */
-                static std::vector<int> sample_buf;
-                sample_buf.clear();
-                sample_buf.resize(n_samples*2);
-                struct Mix
-                {
-                    static void AddStereoAudio(unsigned long count, int* samples)
-                    {
-                        for(unsigned long a=0; a<count*2; ++a)
-                            sample_buf[a] += samples[a];
-                    }
-                };
-                for(unsigned card = 0; card < NumCards; ++card)
-                {
-                    evh.opl.cards[card].Generate(
-                        0,
-                        Mix::AddStereoAudio,
-                        n_samples);
-                }
-                /* Process it */
-                SendStereoAudio(n_samples, &sample_buf[0]);
-            }
-
+	    float buffer[MaxSamplesAtTime*2] = {};
+	    evh.opl.Update(buffer, n_samples);
+	    SendStereoAudio(n_samples, buffer);
             AudioWait();
         }
         double nextdelay = player.Tick(eat_delay, mindelay);

@@ -5,7 +5,6 @@ NOGZIPARCHIVES=1
 
 ARCHFILES=\
 	midiplay.cc \
-	dbopl.cpp dbopl.h \
 	adldata.cc adldata.hh \
 	dumpbank.cc dumpmiles.cc \
 	gen_adldata.cc \
@@ -92,25 +91,28 @@ ARCHFILES=\
 	raptor/genmidi.op2
 
 INSTALLPROGS=adlmidi
+OPLSYNTH_OBJS=oplsynth/fmopl.o \
+	oplsynth/OPL3.o \
+	oplsynth/dosbox_opl.o
 
 all: adlmidi gen_adldata dumpmiles dumpbank adlseq adltester
 
-adlmidi: midiplay.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
+adlmidi: midiplay.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
-adlseq: seqplay.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
+adlseq: seqplay.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
-adltester: adltester.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
+adltester: adltester.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o $(OPLSYNTH_OBJS)
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
-midiplay.o: midiplay.cc dbopl.h adldata.hh
+midiplay.o: midiplay.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
-seqplay.o: seqplay.cc dbopl.h adldata.hh
+seqplay.o: seqplay.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
-midievt.o: midievt.cc dbopl.h adldata.hh
+midievt.o: midievt.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
 ui.o: ui.cc dbopl.h adldata.hh
@@ -140,5 +142,17 @@ dumpbank: dumpbank.o
 dumpbank.o: dumpbank.cc
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
+ZD_CFLAGS=-Dstricmp=strcasecmp -Dstrnicmp=strncasecmp
+oplsynth/fmopl.o: oplsynth/fmopl.cpp
+	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
+
+oplsynth/OPL3.o: oplsynth/OPL3.cpp
+	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
+
+oplsynth/dosbox_opl.o: oplsynth/dosbox_opl.cpp
+	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
+
+oplsynth/m_random.o: oplsynth/m_random.cpp
+	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 include depfun.mak

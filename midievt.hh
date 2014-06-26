@@ -1,18 +1,22 @@
 #ifndef H_MIDIEVT
 #define H_MIDIEVT
 
-#include "dbopl.h"
+#include "oplsynth/opl.h"
 
 struct OPL3IF
 {
     unsigned NumChannels;
 
-    std::vector<DBOPL::Handler> cards;
+    std::vector<OPLEmul*> cards;
 private:
     std::vector<unsigned short> ins; // index to adl[], cached, needed by Touch()
     std::vector<unsigned char> pit;  // value poked to B0, cached, needed by NoteOff)(
     std::vector<unsigned char> regBD;
+
+    void Cleanup();
 public:
+    ~OPL3IF();
+
     std::vector<char> four_op_category; // 1 = quad-master, 2 = quad-slave, 0 = regular
                                         // 3 = percussion BassDrum
                                         // 4 = percussion Snare
@@ -30,6 +34,7 @@ public:
     void Pan(unsigned c, unsigned value);
     void Silence();
     void Reset();
+    void Update(float *buffer, int length);
 };
 
 // Return length of midi event, excluding first byte

@@ -196,34 +196,9 @@ int main(int argc, char** argv)
     StartAudio();
     while( !QuitFlag )
     {
-        if(NumCards == 1)
-        {
-            evh.opl.cards[0].Generate(0, SendStereoAudio, n_samples);
-        }
-        else
-        {
-            /* Mix together the audio from different cards */
-            static std::vector<int> sample_buf;
-            sample_buf.clear();
-            sample_buf.resize(n_samples*2);
-            struct Mix
-            {
-                static void AddStereoAudio(unsigned long count, int* samples)
-                {
-                    for(unsigned long a=0; a<count*2; ++a)
-                        sample_buf[a] += samples[a];
-                }
-            };
-            for(unsigned card = 0; card < NumCards; ++card)
-            {
-                evh.opl.cards[card].Generate(
-                    0,
-                    Mix::AddStereoAudio,
-                    n_samples);
-            }
-            /* Process it */
-            SendStereoAudio(n_samples, &sample_buf[0]);
-        }
+	float buffer[MaxSamplesAtTime*2] = {};
+	evh.opl.Update(buffer, n_samples);
+	SendStereoAudio(n_samples, buffer);
 
         AudioWait();
         evh.Tick(delay);

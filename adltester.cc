@@ -98,9 +98,9 @@ class Tester
     unsigned cur_gm;
     unsigned ins_idx;
     std::vector<unsigned> adl_ins_list;
-    OPL3& opl;
+    OPL3IF& opl;
 public:
-    Tester(OPL3& o) : opl(o)
+    Tester(OPL3IF& o) : opl(o)
     {
         cur_gm   = 0;
         ins_idx  = 0;
@@ -306,36 +306,12 @@ int main(int argc, char** argv)
         const unsigned long n_samples = (unsigned) carry;
         carry -= n_samples;
 
-        if(NumCards == 1)
-        {
-            evh.opl.cards[0].Generate(0, SendStereoAudio, n_samples);
-        }
-        else if(n_samples > 0)
-        {
-            /* Mix together the audio from different cards */
-            static std::vector<int> sample_buf;
-            sample_buf.clear();
-            sample_buf.resize(n_samples*2);
-            struct Mix
-            {
-                static void AddStereoAudio(unsigned long count, int* samples)
-                {
-                    for(unsigned long a=0; a<count*2; ++a)
-                        sample_buf[a] += samples[a];
-                }
-            };
-            for(unsigned card = 0; card < NumCards; ++card)
-            {
-                evh.opl.cards[card].Generate(
-                    0,
-                    Mix::AddStereoAudio,
-                    n_samples);
-            }
-            /* Process it */
-            SendStereoAudio(n_samples, &sample_buf[0]);
+	float buffer[MaxSamplesAtTime*2] = {};
+	evh.opl.Update(buffer, n_samples);
 
-            AudioWait();
-        }
+	SendStereoAudio(n_samples, buffer);
+        AudioWait();
+
         double nextdelay = InstrumentTester.Tick(eat_delay, mindelay);
         UI.ShowCursor();
 

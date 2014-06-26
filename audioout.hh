@@ -8,7 +8,7 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength);
 /** Start audio */
 void StartAudio();
 /** Send samples */
-void SendStereoAudio(unsigned long count, int* samples);
+void SendStereoAudio(unsigned long count, float* samples);
 /** Wait for samples to be consumed, apart from headroom length in seconds */
 void AudioWait();
 /** Shutdown audio system */
