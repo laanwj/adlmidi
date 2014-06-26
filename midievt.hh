@@ -3,7 +3,7 @@
 
 #include "dbopl.h"
 
-struct OPL3
+struct OPL3IF
 {
     unsigned NumChannels;
 
@@ -125,7 +125,7 @@ class MIDIeventhandler
     };
     std::vector<AdlChannel> ch;
 public:
-    OPL3 opl;
+    OPL3IF opl;
 private:
     enum { Upd_Patch  = 0x1,
            Upd_Pan    = 0x2,

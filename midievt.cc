@@ -104,11 +104,11 @@ static const unsigned short Channels[23] =
 */
 
 
-void OPL3::Poke(unsigned card, unsigned index, unsigned value)
+void OPL3IF::Poke(unsigned card, unsigned index, unsigned value)
 {
     cards[card].WriteReg(index, value);
 }
-void OPL3::NoteOff(unsigned c)
+void OPL3IF::NoteOff(unsigned c)
 {
     unsigned card = c/23, cc = c%23;
     if(cc >= 18)
@@ -119,7 +119,7 @@ void OPL3::NoteOff(unsigned c)
     }
     Poke(card, 0xB0 + Channels[cc], pit[c] & 0xDF);
 }
-void OPL3::NoteOn(unsigned c, double hertz) // Hertz range: 0..131071
+void OPL3IF::NoteOn(unsigned c, double hertz) // Hertz range: 0..131071
 {
     unsigned card = c/23, cc = c%23;
     unsigned x = 0x2000;
@@ -144,7 +144,7 @@ void OPL3::NoteOn(unsigned c, double hertz) // Hertz range: 0..131071
         Poke(card, 0xB0 + chn, pit[c] = x >> 8);
     }
 }
-void OPL3::Touch_Real(unsigned c, unsigned volume)
+void OPL3IF::Touch_Real(unsigned c, unsigned volume)
 {
     if(volume > 63) volume = 63;
     unsigned card = c/23, cc = c%23;
@@ -201,14 +201,14 @@ void OPL3::Touch_Real(unsigned c, unsigned volume)
     // Also (slower, floats):
     //   63 + chanvol * (instrvol / 63.0 - 1)
 }
-void OPL3::Touch(unsigned c, unsigned volume) // Volume maxes at 127*127*127
+void OPL3IF::Touch(unsigned c, unsigned volume) // Volume maxes at 127*127*127
 {
     // The formula below: SOLVE(V=127^3 * 2^( (A-63.49999) / 8), A)
     Touch_Real(c, volume>8725  ? std::log(volume)*11.541561 + (0.5 - 104.22845) : 0);
     // The incorrect formula below: SOLVE(V=127^3 * (2^(A/63)-1), A)
     //Touch_Real(c, volume>11210 ? 91.61112 * std::log(4.8819E-7*volume + 1.0)+0.5 : 0);
 }
-void OPL3::Patch(unsigned c, unsigned i)
+void OPL3IF::Patch(unsigned c, unsigned i)
 {
     unsigned card = c/23, cc = c%23;
     static const unsigned char data[4] = {0x20,0x60,0x80,0xE0};
@@ -222,17 +222,17 @@ void OPL3::Patch(unsigned c, unsigned i)
         Poke(card, data[a]+o2, y&0xFF); y>>=8;
     }
 }
-void OPL3::Pan(unsigned c, unsigned value)
+void OPL3IF::Pan(unsigned c, unsigned value)
 {
     unsigned card = c/23, cc = c%23;
     if(Channels[cc] != 0xFFF)
         Poke(card, 0xC0 + Channels[cc], adl[ins[c]].feedconn | value);
 }
-void OPL3::Silence() // Silence all OPL channels.
+void OPL3IF::Silence() // Silence all OPL channels.
 {
     for(unsigned c=0; c<NumChannels; ++c) { NoteOff(c); Touch_Real(c,0); }
 }
-void OPL3::Reset()
+void OPL3IF::Reset()
 {
     cards.resize(NumCards);
     NumChannels = NumCards * 23;
