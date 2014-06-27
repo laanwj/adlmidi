@@ -262,6 +262,7 @@ static MutexType AudioBuffer_lock;
 static CondType AudioBuffer_cond;
 static size_t min_samples;
 static bool audio_started;
+static bool audio_underflow;
 
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
@@ -271,7 +272,11 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
         fprintf(stderr, "len=%d stereo samples, AudioBuffer has %u stereo samples",
             len/4, (unsigned) AudioBuffer.size()/2);*/
     unsigned ate = len/2; // number of shorts
-    if(ate > AudioBuffer.size()) ate = AudioBuffer.size();
+    if(ate > AudioBuffer.size())
+    {
+        ate = AudioBuffer.size();
+        audio_underflow = true;
+    }
     std::deque<short>::iterator i = AudioBuffer.begin();
     for(unsigned a = 0; a < ate; ++a,++i)
         target[a] = *i;
@@ -505,6 +510,11 @@ void SendStereoAudio(unsigned long count, float* samples)
     {
         audio_started = true;
         SDL_PauseAudio(0);
+    }
+    if(audio_underflow)
+    {
+        audio_underflow = false;
+        UI.PrintLn("Warning: an audio buffer underflow happened.");
     }
 #endif
 }
