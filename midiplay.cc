@@ -452,19 +452,11 @@ int main(int argc, char** argv)
     if(!player.LoadMIDI(argv[1]))
         return 2;
 
-    const double mindelay = 1 / (double)PCM_RATE;
-    const double maxdelay = MaxSamplesAtTime / (double)PCM_RATE;
-
     StartAudio();
-    for(double delay=0; !QuitFlag; )
+    for(int delay=0; !QuitFlag; )
     {
-        const double eat_delay = delay < maxdelay ? delay : maxdelay;
-        delay -= eat_delay;
+        const int n_samples = std::min(delay, (int)MaxSamplesAtTime);
 
-        static double carry = 0.0;
-        carry += PCM_RATE * eat_delay;
-        const unsigned long n_samples = (unsigned) carry;
-        carry -= n_samples;
         if(SkipForward > 0)
             SkipForward -= 1;
         else
@@ -474,7 +466,9 @@ int main(int argc, char** argv)
 	    SendStereoAudio(n_samples, buffer);
             AudioWait();
         }
-        double nextdelay = player.Tick(eat_delay, mindelay);
+        int nextdelay = ceil(player.Tick(
+		    n_samples / (double)PCM_RATE,
+		    1.0 / (double)PCM_RATE) * (double)PCM_RATE);
         UI.ShowCursor();
 
         delay = nextdelay;
