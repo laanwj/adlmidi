@@ -34,7 +34,7 @@ public:
     void Patch(unsigned c, unsigned i);
     void Pan(unsigned c, unsigned value);
     void Silence();
-    void Reset(bool fullpan);
+    void Reset(OPLEmuType emutype, bool fullpan);
     void Update(float *buffer, int length);
 };
 

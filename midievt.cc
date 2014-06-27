@@ -260,19 +260,34 @@ void OPL3IF::Silence() // Silence all OPL channels.
 {
     for(unsigned c=0; c<NumChannels; ++c) { NoteOff(c); Touch_Real(c,0); }
 }
-void OPL3IF::Reset(bool fullpan)
+void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
-    fullpan = false; // XXX DBOPLv2 and YMF262 does not support fullpan yet
+    // XXX DBOPLv2 and YMF262 does not support fullpan yet
+    const char *emuname = NULL;
+    switch(emutype)
+    {
+	case OPLEMU_DBOPL: emuname = "Old DOSBOX"; break;
+	case OPLEMU_DBOPLv2: emuname = "New DOSBOX"; fullpan = false; break;
+	case OPLEMU_VintageTone: emuname = "'That vintage tone'"; break;
+	case OPLEMU_YM3812: emuname = "YM3812 from MAME"; break;
+	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
+	default: abort();
+    }
+    fprintf(stdout, "OPL emulation used: %s (fullpan %s)\n", emuname, fullpan?"on":"off");
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
-	//cards[a] = JavaOPLCreate(fullpan);
-	//cards[a] = DBOPLCreate(fullpan);
-	cards[a] = DBOPLv2Create(fullpan);
-        //cards[a] = YM3812Create(fullpan);
-        //cards[a] = YMF262Create(fullpan);
+	switch(emutype)
+	{
+	    case OPLEMU_DBOPL: cards[a] = DBOPLCreate(fullpan); break;
+	    case OPLEMU_DBOPLv2: cards[a] = DBOPLv2Create(fullpan); break;
+	    case OPLEMU_VintageTone: cards[a] = JavaOPLCreate(fullpan); break;
+	    case OPLEMU_YM3812: cards[a] = YM3812Create(fullpan); break;
+	    case OPLEMU_YMF262: cards[a] = YMF262Create(fullpan); break;
+	    default: abort();
+	}
     }
 
     NumChannels = NumCards * 23;
@@ -1195,7 +1210,7 @@ void MIDIeventhandler::HandleEvent(int chanofs, unsigned char byte, const unsign
 
 void MIDIeventhandler::Reset()
 {
-    opl.Reset(true); // Reset AdLib
+    opl.Reset(EmuType, FullPan); // Reset AdLib
     ch.clear();
     ch.resize(opl.NumChannels);
     Ch.clear();

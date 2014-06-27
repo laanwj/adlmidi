@@ -38,6 +38,8 @@ bool AdlPercussionMode = false;
 bool QuitWithoutLooping = false;
 bool WritePCMfile = false;
 bool ScaleModulators = false;
+OPLEmuType EmuType = OPLEMU_DBOPLv2;
+bool FullPan = false;
 
 int ParseArguments(int argc, char **argv)
 {
@@ -53,6 +55,8 @@ int ParseArguments(int argc, char **argv)
             " -s Enables scaling of modulator volumes\n"
             " -nl Quit without looping\n"
             " -w Write WAV file rather than playing\n"
+            " -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)\n"
+            " -fp Enable full stereo panning\n"
         );
         for(unsigned a=0; a<sizeof(banknames)/sizeof(*banknames); ++a)
             std::printf("%10s%2u = %s\n",
@@ -87,6 +91,27 @@ int ParseArguments(int argc, char **argv)
             WritePCMfile = true;
         else if(!std::strcmp("-s", argv[2]))
             ScaleModulators = true;
+        else if(!std::strcmp("-fp", argv[2]))
+            FullPan = true;
+        else if(!std::strncmp("-emu=", argv[2], 5))
+	{
+	    const char *emu = argv[2]+5;
+	    if(!std::strcmp("dbopl", emu))
+		EmuType = OPLEMU_DBOPL;
+	    else if(!std::strcmp("dboplv2", emu))
+	        EmuType = OPLEMU_DBOPLv2;
+	    else if(!std::strcmp("vintage", emu))
+	        EmuType = OPLEMU_VintageTone;
+	    else if(!std::strcmp("ym3812", emu))
+	        EmuType = OPLEMU_YM3812;
+	    else if(!std::strcmp("ymf262", emu))
+	        EmuType = OPLEMU_YMF262;
+	    else
+	    {
+		std::fprintf(stderr, "unknown opl emulator %s.\n", emu);
+		return 0;
+	    }
+	}
         else break;
 
         for(int p=2; p<argc; ++p) argv[p] = argv[p+1];

@@ -1,6 +1,15 @@
 #ifndef H_CONFIG
 #define H_CONFIG
 
+enum OPLEmuType
+{
+OPLEMU_DBOPL,        // Old DOSBOX OPL3
+OPLEMU_DBOPLv2,      // New DOSBOX OPL3
+OPLEMU_VintageTone,  // 'That vintage tone' emulator by Robson Cozendey ported to C++ from zdoom
+OPLEMU_YM3812,       // YM3812 from MAME (via zdoom)
+OPLEMU_YMF262        // YMF262 from MAME (via VGMPlay)
+};
+
 static const unsigned long PCM_RATE = 49716;
 static const unsigned MaxCards = 100;
 static const unsigned MaxSamplesAtTime = 512; // 512=dbopl limitation
@@ -17,6 +26,8 @@ extern bool AdlPercussionMode;
 extern bool QuitWithoutLooping;
 extern bool WritePCMfile;
 extern bool ScaleModulators;
+extern OPLEmuType EmuType;
+extern bool FullPan;
 
 #endif
 
