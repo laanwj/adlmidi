@@ -6,7 +6,7 @@ enum OPLEmuType
 OPLEMU_DBOPL,        // Old DOSBOX OPL3
 OPLEMU_DBOPLv2,      // New DOSBOX OPL3
 OPLEMU_VintageTone,  // 'That vintage tone' emulator by Robson Cozendey ported to C++ from zdoom
-OPLEMU_YM3812,       // YM3812 from MAME (via zdoom)
+OPLEMU_YM3812,       // YM3812 from MAME (via zdoom). OPL2 not OPL3, so cannot is broken with ADLMIDI currently.
 OPLEMU_YMF262        // YMF262 from MAME (via VGMPlay)
 };
 
