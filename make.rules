@@ -94,7 +94,8 @@ INSTALLPROGS=adlmidi
 OPLSYNTH_OBJS=oplsynth/fmopl.o \
 	oplsynth/OPL3.o \
 	oplsynth/dosbox_opl.o \
-	oplsynth/dosbox_dbopl.o
+	oplsynth/dosbox_dbopl.o \
+	oplsynth/ymf262.o
 
 all: adlmidi gen_adldata dumpmiles dumpbank adlseq adltester
 
@@ -151,6 +152,9 @@ oplsynth/dosbox_opl.o: oplsynth/dosbox_opl.cpp
 	$(CXX) $(CPPFLAGS) $(ZD_CFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 oplsynth/dosbox_dbopl.o: oplsynth/dosbox_dbopl.cpp oplsynth/dosbox_dbopl.h
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
+
+oplsynth/ymf262.o: oplsynth/ymf262.cpp
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
 include depfun.mak

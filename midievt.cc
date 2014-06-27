@@ -264,7 +264,7 @@ void OPL3IF::Reset(bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
-    fullpan = false;
+    fullpan = false; // XXX DBOPLv2 and YMF262 does not support fullpan yet
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
@@ -272,6 +272,7 @@ void OPL3IF::Reset(bool fullpan)
 	//cards[a] = DBOPLCreate(fullpan);
 	cards[a] = DBOPLv2Create(fullpan);
         //cards[a] = YM3812Create(fullpan);
+        //cards[a] = YMF262Create(fullpan);
     }
 
     NumChannels = NumCards * 23;
