@@ -153,6 +153,9 @@ void UI::PrintLn(const char* fmt, ...)
 void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend)
 {
     HideCursor();
+    // If not in percussion mode the lower 5 channels are not use, so use 18 lines per chip instead of 23
+    if(!AdlPercussionMode)
+        adlchn = (adlchn / 23) * 18 + (adlchn % 23);
     int notex = 2 + (note+55)%77;
     int notey = 1 + adlchn % WinHeight();
     char illustrate_char = background[notex][notey];
