@@ -2844,6 +2844,7 @@ public:
 			length = 512;
 		OPL3SAMPLE a[512], b[512];
 		OPL3SAMPLE *buffers[] = {a,b,NULL,NULL};
+		// TODO: render per voice, like zdoom's fmopl.cpp
 
 		ymf262_update_one(&Chip, buffers, length);
 		for(int idx=0; idx<length; ++idx)
