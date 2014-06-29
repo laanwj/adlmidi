@@ -114,7 +114,7 @@ public:
             std::fseek(fp, 7-(4+4+2+2+2), SEEK_CUR);
             is_GMF = true;
         }
-        else if(std::memcmp(HeaderBuf, "MUS\1x1A", 4) == 0)
+        else if(std::memcmp(HeaderBuf, "MUS\x1A", 4) == 0)
         {
             // MUS/DMX files (Doom)
             std::fseek(fp, 8-(4+4+2+2+2), SEEK_CUR);
