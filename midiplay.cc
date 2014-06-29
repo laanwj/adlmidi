@@ -18,16 +18,7 @@
 
 #include <assert.h>
 
-#ifdef __DJGPP__
-# include <conio.h>
-# include <pc.h>
-# include <dpmi.h>
-# include <go32.h>
-# include <sys/farptr.h>
-# include <dos.h>
-# define BIOStimer _farpeekl(_dos_ds, 0x46C)
-static const unsigned NewTimerFreq = 209;
-#elif !defined(__WIN32__) || defined(__CYGWIN__)
+#if !defined(__WIN32__) || defined(__CYGWIN__)
 # include <termio.h>
 # include <fcntl.h>
 # include <sys/ioctl.h>
@@ -40,16 +31,11 @@ static const unsigned NewTimerFreq = 209;
 
 #include "fraction"
 
-#ifndef __DJGPP__
 #include "dbopl.h"
 
 static const unsigned long PCM_RATE = 48000;
 static const unsigned MaxCards = 100;
 static const unsigned MaxSamplesAtTime = 512; // 512=dbopl limitation
-#else // DJGPP
-static const unsigned MaxCards = 1;
-static const unsigned OPLBase = 0x388;
-#endif
 static unsigned AdlBank    = 0;
 static unsigned NumFourOps = 7;
 static unsigned NumCards   = 2;
@@ -128,9 +114,7 @@ struct OPL3
 {
     unsigned NumChannels;
 
-#ifndef __DJGPP__
     std::vector<DBOPL::Handler> cards;
-#endif
 private:
     std::vector<unsigned short> ins; // index to adl[], cached, needed by Touch()
     std::vector<unsigned char> pit;  // value poked to B0, cached, needed by NoteOff)(
@@ -146,16 +130,7 @@ public:
 
     void Poke(unsigned card, unsigned index, unsigned value)
     {
-#ifdef __DJGPP__
-        unsigned o = index >> 8;
-        unsigned port = OPLBase + o * 2;
-        outportb(port, index);
-        for(unsigned c=0; c<6; ++c) inportb(port);
-        outportb(port+1, value);
-        for(unsigned c=0; c<35; ++c) inportb(port);
-#else
         cards[card].WriteReg(index, value);
-#endif
     }
     void NoteOff(unsigned c)
     {
@@ -278,9 +253,7 @@ public:
     }
     void Reset()
     {
-#ifndef __DJGPP__
         cards.resize(NumCards);
-#endif
         NumChannels = NumCards * 23;
         ins.resize(NumChannels,     189);
         pit.resize(NumChannels,       0);
@@ -300,9 +273,7 @@ public:
         unsigned fours = NumFourOps;
         for(unsigned card=0; card<NumCards; ++card)
         {
-#ifndef __DJGPP__
             cards[card].Init(PCM_RATE);
-#endif
             for(unsigned a=0; a< 18; ++a) Poke(card, 0xB0+Channels[a], 0x00);
             for(unsigned a=0; a< sizeof(data)/sizeof(*data); a+=2)
                 Poke(card, data[a], data[a+1]);
@@ -420,7 +391,7 @@ class Input
 #ifdef __WIN32__
     void* inhandle;
 #endif
-#if (!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__)
+#if (!defined(__WIN32__) || defined(__CYGWIN__))
     struct termio back;
 #endif
 public:
@@ -429,7 +400,7 @@ public:
 #ifdef __WIN32__
         inhandle = GetStdHandle(STD_INPUT_HANDLE);
 #endif
-#if (!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__)
+#if (!defined(__WIN32__) || defined(__CYGWIN__))
         ioctl(0, TCGETA, &back);
         struct termio term = back;
         term.c_lflag &= ~(ICANON|ECHO);
@@ -440,7 +411,7 @@ public:
     }
     ~Input()
     {
-#if (!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__)
+#if (!defined(__WIN32__) || defined(__CYGWIN__))
         if(ioctl(0, TCSETA, &back) < 0)
             fcntl(0, F_SETFL, fcntl(0, F_GETFL) &~ O_NONBLOCK);
 #endif
@@ -448,9 +419,6 @@ public:
 
     char PeekInput()
     {
-#ifdef __DJGPP__
-        if(kbhit()) { int c = getch(); return c ? c : getch(); }
-#endif
 #ifdef __WIN32__
         DWORD nread=0;
         INPUT_RECORD inbuf[1];
@@ -466,7 +434,7 @@ public:
                 return c;
         }   }
 #endif
-#if (!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__)
+#if (!defined(__WIN32__) || defined(__CYGWIN__))
         char c = 0;
         if(read(0, &c, 1) == 1) return c;
 #endif
@@ -486,9 +454,6 @@ public:
     unsigned char slotcolors[80][1 + 23*MaxCards];
     bool cursor_visible;
 public:
-    #ifdef __DJGPP__
-    # define prn cprintf
-    #endif
     UI(): x(0), y(0), color(-1), txtline(1),
           maxy(0), cursor_visible(true)
     {
@@ -507,9 +472,6 @@ public:
             //COORD size = { 80, 23*NumCards+5 };
             //SetConsoleScreenBufferSize(handle,size);
         }
-      #endif
-      #ifdef __DJGPP__
-        color = 7;
       #endif
         std::memset(slots, '.',      sizeof(slots));
         std::memset(background, '.', sizeof(background));
@@ -533,9 +495,6 @@ public:
       #endif
         if(!DoingInstrumentTesting)
             CheckTetris();
-#ifdef __DJGPP__
-        { _setcursortype(_NOCURSOR);return;  }
-#endif
         prn("\33[?25l"); // hide cursor
     }
     void ShowCursor()
@@ -551,9 +510,6 @@ public:
           return;
         }
       #endif
-#ifdef __DJGPP__
-        { _setcursortype(_NORMALCURSOR);return;  }
-#endif
         prn("\33[?25h"); // show cursor
         std::fflush(stderr);
     }
@@ -579,11 +535,7 @@ public:
         {
             if(Line[x-beginx] == '\n') break;
             Color(Line[x-beginx] == '.' ? 1 : 8);
-        #ifdef __DJGPP__
-            putch( background[x][txtline] = Line[x-beginx] );
-        #else
             std::fputc( background[x][txtline] = Line[x-beginx], stderr);
-        #endif
         }
         for(int tx=x; tx<80; ++tx)
         {
@@ -591,11 +543,7 @@ public:
             {
                 GotoXY(tx,txtline);
                 Color(1);
-             #ifdef __DJGPP__
-                putch(background[tx][txtline] = '.');
-             #else
                 std::fputc(background[tx][txtline] = '.', stderr);
-             #endif
                 ++x;
             }
         }
@@ -642,9 +590,6 @@ public:
         #ifdef __WIN32__
             if(handle) WriteConsole(handle,&ch,1, 0,0);
             else
-        #endif
-        #ifdef __DJGPP__
-            if(1) putch(ch); else
         #endif
             {
               std::fputc(ch, stderr);
@@ -695,9 +640,6 @@ public:
           SetConsoleCursorPosition(handle, tmp2);
         }
       #endif
-#ifdef __DJGPP__
-        { gotoxy(x=newx, wherey()-(y-newy)); y=newy; return; }
-#endif
         if(newy < y) { prn("\33[%dA", y-newy); y = newy; }
         if(newx != x)
         {
@@ -718,10 +660,6 @@ public:
               SetConsoleTextAttribute(handle, newcolor);
             else
           #endif
-#ifdef __DJGPP__
-            textattr(newcolor);
-            if(0)
-#endif
             {
               static const char map[8+1] = "04261537";
               prn("\33[0;%s3%c",
@@ -835,9 +773,6 @@ public:
         } tetris;
         static int gamestate=-1, curblock, currot, curx, cury, dropping;
         static int delaycounter=-1, score, lines, combo=0;
-    #ifdef __DJGPP__
-        static long delaytime=0;
-    #endif
         static int scorewipe=0, focuswipe=0, shadowy=0, next1=0, next2=0;
         if(NumCards < 2) gamestate=1;
         switch(gamestate)
@@ -857,9 +792,6 @@ public:
                     tetris.plotp(curblock,currot,curx,shadowy,-1,0);
                 }
                 tetris.plotp(curblock,currot,curx,cury, 8,0);
-            #ifdef __DJGPP__
-                delaytime=BIOStimer;
-            #endif
                 //passthru
             case 1: // handle input
             {
@@ -882,7 +814,7 @@ public:
                                 FakeDOSshell = true;
                                 //passthru
                             case 'q': case 'Q': case 3:
-                            #if !((!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__))
+                            #if !((!defined(__WIN32__) || defined(__CYGWIN__)))
                             case 27:
                             #endif
                                 QuitFlag=true; break;
@@ -895,9 +827,6 @@ public:
                         }
                         if(move) break;
                     }
-                #ifdef __DJGPP__
-                    delaycounter = (BIOStimer-delaytime) > NewTimerFreq*level/50 ? level : 0;
-                #endif
                     if(!move && (dropping || ++delaycounter>=level))
                         { my=cury+1; move=1; delaycounter=0; }
                     if(scorewipe>0 && --scorewipe==0)
@@ -983,7 +912,6 @@ public:
         }
     }
 private:
-    #ifndef __DJGPP__
     void prn(const char* fmt, ...)
     {
         va_list ap;
@@ -991,7 +919,6 @@ private:
         vfprintf(stderr, fmt, ap);
         va_end(ap);
     }
-    #endif
 } UI;
 
 // Process MIDI events and send them to OPL
@@ -2247,7 +2174,6 @@ private:
 
 };
 
-#ifndef __DJGPP__
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
     float feedback, hf_damping, gain;
@@ -2662,7 +2588,6 @@ static void SendStereoAudio(unsigned long count, int* samples)
         WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], 2*AudioBuffer.size());
 #endif
 }
-#endif /* not DJGPP */
 
 class Tester
 {
@@ -2793,7 +2718,7 @@ public:
             case '-': case 'K': case 'D': NextGM(-1); break;
             case '+': case 'M': case 'C': NextGM(+1); break;
             case 3:
-        #if !((!defined(__WIN32__) || defined(__CYGWIN__)) && !defined(__DJGPP__))
+        #if !((!defined(__WIN32__) || defined(__CYGWIN__)))
             case 27:
         #endif
                 QuitFlag=true; break;
@@ -2887,11 +2812,7 @@ int main(int argc, char** argv)
 
     UI.Color(15); std::fflush(stderr);
     std::printf(
-#ifdef __DJGPP__
-        "ADLMIDI_A: MIDI player for OPL3 hardware\n"
-#else
         "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n"
-#endif
     );
     std::fflush(stdout);
     UI.Color(3); std::fflush(stderr);
@@ -2902,8 +2823,6 @@ int main(int argc, char** argv)
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
-
-#ifndef __DJGPP__
 
 #ifndef __WIN32__
     // Set up SDL
@@ -2923,8 +2842,6 @@ int main(int argc, char** argv)
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
 #endif
-
-#endif /* not DJGPP */
 
     if(argc < 2)
     {
@@ -3060,18 +2977,6 @@ int main(int argc, char** argv)
         return 0;
     }
 
-#ifdef __DJGPP__
-
-    unsigned TimerPeriod = 0x1234DDul / NewTimerFreq;
-    //disable();
-    outportb(0x43, 0x34);
-    outportb(0x40, TimerPeriod & 0xFF);
-    outportb(0x40, TimerPeriod >>   8);
-    //enable();
-    unsigned long BIOStimer_begin = BIOStimer;
-
-#else
-
     const double mindelay = 1 / (double)PCM_RATE;
     const double maxdelay = MaxSamplesAtTime / (double)PCM_RATE;
 
@@ -3081,13 +2986,10 @@ int main(int argc, char** argv)
     SDL_PauseAudio(0);
 #endif
 
-#endif /* djgpp */
-
     Tester InstrumentTester(evh.opl);
 
     for(double delay=0; !QuitFlag; )
     {
-    #ifndef __DJGPP__
         const double eat_delay = delay < maxdelay ? delay : maxdelay;
         delay -= eat_delay;
 
@@ -3148,19 +3050,6 @@ int main(int argc, char** argv)
         #endif
             //fprintf(stderr, "Exit: %u\n", (unsigned)AudioBuffer.size());
         }
-    #else /* DJGPP */
-        UI.IllustrateVolumes(0,0);
-        const double mindelay = 1.0 / NewTimerFreq;
-
-        //__asm__ volatile("sti\nhlt");
-        //usleep(10000);
-        __dpmi_yield();
-
-        static unsigned long PrevTimer = BIOStimer;
-        const unsigned long CurTimer = BIOStimer;
-        const double eat_delay = (CurTimer - PrevTimer) / (double)NewTimerFreq;
-        PrevTimer = CurTimer;
-    #endif
 
         double nextdelay =
             DoingInstrumentTesting
@@ -3172,27 +3061,11 @@ int main(int argc, char** argv)
         delay = nextdelay;
     }
 
-#ifdef __DJGPP__
-
-    // Fix the skewed clock and reset BIOS tick rate
-    _farpokel(_dos_ds, 0x46C, BIOStimer_begin +
-        (BIOStimer - BIOStimer_begin)
-        * (0x1234DD/65536.0) / NewTimerFreq );
-    //disable();
-    outportb(0x43, 0x34);
-    outportb(0x40, 0);
-    outportb(0x40, 0);
-    //enable();
-
-#else
-
 #ifdef __WIN32__
     WindowsAudio::Close();
 #else
     SDL_CloseAudio();
 #endif
-
-#endif /* djgpp */
 
     if(FakeDOSshell)
     {
