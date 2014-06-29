@@ -180,8 +180,6 @@ int main(int argc, char** argv)
     const unsigned long n_samples = MaxSamplesAtTime;
     const double delay = n_samples / (double)PCM_RATE;
 
-    StartAudio();
-
     // ALSA
     int err;
     init_seq();
@@ -195,6 +193,7 @@ int main(int argc, char** argv)
                snd_seq_client_id(seq));
     printf("\n");
 
+    StartAudio();
     while( !QuitFlag )
     {
         if(NumCards == 1)
