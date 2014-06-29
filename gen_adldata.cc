@@ -144,8 +144,18 @@ static const char *const MidiInsName[] = {
 "Helicopter",
 "Applause/Noise",
 "Gunshot",
-// 27..34:  High Q; Slap; Scratch Push; Scratch Pull; Sticks;
-//          Square Click; Metronome Click; Metronome Bell
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,
+// 27
+"High Q",
+"Slap",
+"Scratch Push",
+"Scratch Pull",
+"Sticks",
+"Square Click",
+"Metronome Click",
+"Metronome Bell",
 "Ac Bass Drum",
 "Bass Drum 1",
 "Side Stick",
@@ -193,7 +203,14 @@ static const char *const MidiInsName[] = {
 "Open Cuica",
 "Mute Triangle",
 "Open Triangle",
-"Shaker","Jingle Bell","Bell Tree","Castanets","Mute Surdu","Open Surdu",""};
+"Shaker","Jingle Bell","Bell Tree","Castanets","Mute Surdo","Open Surdo",
+// 88
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
+};
 
 struct insdata
 {
@@ -685,10 +702,6 @@ static void LoadMiles(const char* fn, unsigned bank, const char* prefix)
 
         if(gmnumber == 0xFF) break;
         int gmno = gmnumber2==0x7F ? gmnumber+0x80 : gmnumber;
-        int midi_index = gmno < 128 ? gmno
-                       : gmno < 128+35 ? -1
-                       : gmno < 128+88 ? gmno-35
-                       : -1;
         unsigned length = data[offset] + data[offset+1]*256;
         signed char notenum = data[offset+2];
 
@@ -738,7 +751,7 @@ static void LoadMiles(const char* fn, unsigned bank, const char* prefix)
             tmp2.notenum  = gmno < 128 ? 0 : data[offset+3];
             tmp2.pseudo4op = false;
             std::string name;
-            if(midi_index >= 0) name = std::string(1,'\377')+MidiInsName[midi_index];
+            if(MidiInsName[gmno]) name = std::string(1,'\377')+MidiInsName[gmno];
             size_t resno = InsertIns(tmp[0], tmp[1], tmp2, name, name2);
             SetBank(bank, gmno, resno);
         }
@@ -768,10 +781,6 @@ static void LoadIBK(const char* fn, unsigned bank, const char* prefix, bool perc
                 name += char(data[offset1+p]);
 
         int gmno = a + 128*percussive;
-        int midi_index = gmno < 128 ? gmno
-                       : gmno < 128+35 ? -1
-                       : gmno < 128+88 ? gmno-35
-                       : -1;
         char name2[512]; sprintf(name2, "%s%c%u", prefix,
             (gmno<128?'M':'P'), gmno&127);
 
@@ -818,10 +827,6 @@ static void LoadJunglevision(const char* fn, unsigned bank, const char* prefix)
     {
         unsigned offset = 0x28 + a * 0x18;
         unsigned gmno = (a < ins_count) ? (a + first_ins) : (a + first_drum);
-        int midi_index = gmno < 128 ? gmno
-                       : gmno < 128+35 ? -1
-                       : gmno < 128+88 ? gmno-35
-                       : -1;
 
         insdata tmp[2];
 
@@ -863,7 +868,7 @@ static void LoadJunglevision(const char* fn, unsigned bank, const char* prefix)
         }
 
         std::string name;
-        if(midi_index >= 0) name = std::string(1,'\377')+MidiInsName[midi_index];
+        if(MidiInsName[gmno]) name = std::string(1,'\377')+MidiInsName[gmno];
 
         char name2[512]; sprintf(name2, "%s%c%u", prefix,
             (gmno<128?'M':'P'), gmno&127);
@@ -894,10 +899,6 @@ static void LoadTMB(const char* fn, unsigned bank, const char* prefix)
     {
         unsigned offset = a * 0x0D;
         unsigned gmno = a;
-        int midi_index = gmno < 128 ? gmno
-                       : gmno < 128+35 ? -1
-                       : gmno < 128+88 ? gmno-35
-                       : -1;
 
         insdata tmp;
 
@@ -919,7 +920,7 @@ static void LoadTMB(const char* fn, unsigned bank, const char* prefix)
         tmp2.pseudo4op = false;
 
         std::string name;
-        if(midi_index >= 0) name = std::string(1,'\377')+MidiInsName[midi_index];
+        if(MidiInsName[gmno]) name = std::string(1,'\377')+MidiInsName[gmno];
 
         char name2[512]; sprintf(name2, "%s%c%u", prefix,
             (gmno<128?'M':'P'), gmno&127);
@@ -936,10 +937,6 @@ static void LoadBisqwit(const char* fn, unsigned bank, const char* prefix)
     {
         unsigned offset = a * 25;
         unsigned gmno = a;
-        int midi_index = gmno < 128 ? gmno
-                       : gmno < 128+35 ? -1
-                       : gmno < 128+88 ? gmno-35
-                       : -1;
 
         struct ins tmp2;
         tmp2.notenum = std::fgetc(fp);
@@ -953,7 +950,7 @@ static void LoadBisqwit(const char* fn, unsigned bank, const char* prefix)
         }
 
         std::string name;
-        if(midi_index >= 0) name = std::string(1,'\377')+MidiInsName[midi_index];
+        if(MidiInsName[gmno]) name = std::string(1,'\377')+MidiInsName[gmno];
 
         char name2[512]; sprintf(name2, "%s%c%u", prefix,
             (gmno<128?'M':'P'), gmno&127);
