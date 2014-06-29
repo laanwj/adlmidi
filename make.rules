@@ -93,12 +93,18 @@ ARCHFILES=\
 
 INSTALLPROGS=adlmidi
 
-all: adlmidi gen_adldata dumpmiles dumpbank
+all: adlmidi gen_adldata dumpmiles dumpbank adlseq
 
 adlmidi: midiplay.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
+adlseq: seqplay.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
+	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
+
 midiplay.o: midiplay.cc dbopl.h adldata.hh
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
+
+seqplay.o: seqplay.cc dbopl.h adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
 midievt.o: midievt.cc dbopl.h adldata.hh
