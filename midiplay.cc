@@ -44,7 +44,6 @@ bool HighVibratoMode   = false;
 bool AdlPercussionMode = false;
 volatile sig_atomic_t QuitFlag = false;
 unsigned SkipForward = 0;
-bool DoingInstrumentTesting = false;
 bool QuitWithoutLooping = false;
 bool WritePCMfile = false;
 bool ScaleModulators = false;
@@ -601,13 +600,10 @@ namespace WindowsAudio
           static unsigned counter=0, lo=0;
           if(!counter-- || npending < lo) { lo = npending; counter=100; }
 
-          if(!DoingInstrumentTesting)
-          {
-              if(UI.maxy >= 5) {
-                  UI.Color(9);
-                  UI.GotoXY(70,-5+6); fprintf(stderr, "%3u bufs\r", (unsigned)npending); UI.x=0; std::fflush(stderr);
-                  UI.GotoXY(71,-4+6); fprintf(stderr, "lo:%3u\r", lo); UI.x=0; }
-          }
+          if(UI.maxy >= 5) {
+              UI.Color(9);
+              UI.GotoXY(70,-5+6); fprintf(stderr, "%3u bufs\r", (unsigned)npending); UI.x=0; std::fflush(stderr);
+              UI.GotoXY(71,-4+6); fprintf(stderr, "lo:%3u\r", lo); UI.x=0; }
 
           //unprepare the header if it is prepared
           if(Work->dwFlags & WHDR_PREPARED) waveOutUnprepareHeader(hWaveOut, Work, sizeof(WAVEHDR));
@@ -689,26 +685,23 @@ static void SendStereoAudio(unsigned long count, int* samples)
         prev_avg_flt[1] = (prev_avg_flt[1] + average[1]*0.04/double(count)) / 1.04
     };
     // Figure out the amplitude of both channels
-    if(!DoingInstrumentTesting)
+    static unsigned amplitude_display_counter = 0;
+    if(!amplitude_display_counter--)
     {
-        static unsigned amplitude_display_counter = 0;
-        if(!amplitude_display_counter--)
+        amplitude_display_counter = (PCM_RATE / count) / 24;
+        double amp[2]={0,0};
+        for(unsigned w=0; w<2; ++w)
         {
-            amplitude_display_counter = (PCM_RATE / count) / 24;
-            double amp[2]={0,0};
-            for(unsigned w=0; w<2; ++w)
-            {
-                average[w] /= double(count);
-                for(unsigned long p = 0; p < count; ++p)
-                    amp[w] += std::fabs(samples[p*2+w] - average[w]);
-                amp[w] /= double(count);
-                // Turn into logarithmic scale
-                const double dB = std::log(amp[w]<1 ? 1 : amp[w]) * 4.328085123;
-                const double maxdB = 3*16; // = 3 * log2(65536)
-                amp[w] = dB/maxdB;
-            }
-            UI.IllustrateVolumes(amp[0], amp[1]);
+            average[w] /= double(count);
+            for(unsigned long p = 0; p < count; ++p)
+                amp[w] += std::fabs(samples[p*2+w] - average[w]);
+            amp[w] /= double(count);
+            // Turn into logarithmic scale
+            const double dB = std::log(amp[w]<1 ? 1 : amp[w]) * 4.328085123;
+            const double maxdB = 3*16; // = 3 * log2(65536)
+            amp[w] = dB/maxdB;
         }
+        UI.IllustrateVolumes(amp[0], amp[1]);
     }
 
     //static unsigned counter = 0; if(++counter < 8000)  return;
@@ -985,11 +978,6 @@ int main(int argc, char** argv)
     {
         const unsigned NumBanks = sizeof(banknames)/sizeof(*banknames);
         int bankno = std::atoi(argv[2]);
-        if(bankno == -1)
-        {
-            bankno = 0;
-            DoingInstrumentTesting = true;
-        }
         AdlBank = bankno;
         if(AdlBank >= NumBanks)
         {
@@ -1033,8 +1021,7 @@ int main(int argc, char** argv)
     }
     else
         NumFourOps =
-            DoingInstrumentTesting ? 2
-          : (n_fourop[0] >= n_total[0]*7/8) ? NumCards * 6
+            (n_fourop[0] >= n_total[0]*7/8) ? NumCards * 6
           : (n_fourop[0] < n_total[0]*1/8) ? 0
           : (NumCards==1 ? 1 : NumCards*4);
 
