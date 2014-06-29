@@ -11,7 +11,7 @@ DEBUG=-Ofast -g
 # -march=pentium -mno-sse -mno-sse2 -mno-sse3 -mmmx
 
 CPPFLAGS+=$$(pkg-config --cflags sdl)
-LDLIBS+=$$(pkg-config --libs sdl)
+LDLIBS+=$$(pkg-config --libs sdl) -lasound
 CPPFLAGS += $(SDL)
 
 CPPFLAGS += -std=c++11 -pedantic -Wall -Wextra
