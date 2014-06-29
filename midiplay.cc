@@ -29,8 +29,6 @@
 
 #include <signal.h>
 
-#include "fraction"
-
 #include "adldata.hh"
 #include "config.hh"
 #include "ui.hh"
