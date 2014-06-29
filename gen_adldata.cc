@@ -1275,6 +1275,8 @@ int main()
     LoadTMB("tmb_files/swtimbr.tmb",  63, "sw");
 
     LoadDoom("raptor/genmidi.op2", 64, "rapt");
+    LoadDoom("doom2/genmidi_freedoom.op2", 65, "fdm");
+    LoadDoom("doom2/genmidi_ultdoom.op2", 66, "udm");
     //LoadBNK("bnk_files/grassman1.bnk", 63, "b63", false);
     //LoadBNK("bnk_files/grassman2.bnk", 64, "b64", false);
 
@@ -1352,7 +1354,9 @@ int main()
      "OP3 (Wallace 2op set, Nitemare 3D :: melodic only)",
      "TMB (Duke Nukem 3D)",
      "TMB (Shadow Warrior)",
-     "DMX (Raptor)"
+     "DMX (Raptor)",
+     "DMX (Free Doom)",
+     "DMX (Ultimate Doom replacement)"
     };
 
 #if 0
