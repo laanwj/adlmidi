@@ -95,7 +95,7 @@ INSTALLPROGS=adlmidi
 
 all: adlmidi gen_adldata dumpmiles dumpbank
 
-adlmidi: midiplay.o dbopl.o adldata.o midievt.o ui.o
+adlmidi: midiplay.o dbopl.o adldata.o midievt.o ui.o audioout.o parseargs.o
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
 midiplay.o: midiplay.cc dbopl.h adldata.hh
