@@ -2900,6 +2900,7 @@ int main(int argc, char** argv)
     std::fflush(stdout);
     UI.Color(7); std::fflush(stderr);
 
+    signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
 
 #ifndef __DJGPP__
