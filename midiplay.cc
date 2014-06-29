@@ -456,7 +456,6 @@ int main(int argc, char** argv)
     const double maxdelay = MaxSamplesAtTime / (double)PCM_RATE;
 
     StartAudio();
-
     for(double delay=0; !QuitFlag; )
     {
         const double eat_delay = delay < maxdelay ? delay : maxdelay;
