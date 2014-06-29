@@ -95,10 +95,16 @@ INSTALLPROGS=adlmidi
 
 all: adlmidi gen_adldata dumpmiles dumpbank
 
-adlmidi: midiplay.o dbopl.o adldata.o
+adlmidi: midiplay.o dbopl.o adldata.o midievt.o ui.o
 	$(CXXLINK)  $^  $(DEBUG) $(SDL) -o $@ $(LDLIBS)
 
 midiplay.o: midiplay.cc dbopl.h adldata.hh
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
+
+midievt.o: midievt.cc dbopl.h adldata.hh
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
+
+ui.o: ui.cc dbopl.h adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
 dbopl.o: dbopl.cpp dbopl.h
