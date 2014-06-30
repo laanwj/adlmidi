@@ -357,19 +357,16 @@ private:
     void HandleEvent(size_t tk)
     {
         unsigned char byte = TrackData[tk][CurrentPosition.track[tk].ptr++];
-        if(byte == 0xF7 || byte == 0xF0) // Ignore SysEx
+        unsigned length;
+        if(byte == 0xF7 || byte == 0xF0) // SysEx
         {
-            unsigned length = ReadVarLen(tk);
-            //std::string data( length?(const char*) &TrackData[tk][CurrentPosition.track[tk].ptr]:0, length );
-            CurrentPosition.track[tk].ptr += length;
-            UI.PrintLn("SysEx %02X: %u bytes", byte, length/*, data.c_str()*/);
-            return;
+            length = ReadVarLen(tk);
         }
-        if(byte == 0xFF)
+        else if(byte == 0xFF)
         {
             // Special event FF
             unsigned char evtype = TrackData[tk][CurrentPosition.track[tk].ptr++];
-            unsigned long length = ReadVarLen(tk);
+            length = ReadVarLen(tk);
             std::string data( length?(const char*) &TrackData[tk][CurrentPosition.track[tk].ptr]:0, length );
             CurrentPosition.track[tk].ptr += length;
             if(evtype == 0x2F) { CurrentPosition.track[tk].status = -1; return; }
@@ -389,70 +386,23 @@ private:
             }
             return;
         }
-        // Any normal event (80..EF)
-        if(byte < 0x80)
-          { byte = CurrentPosition.track[tk].status | 0x80;
-            CurrentPosition.track[tk].ptr--; }
-        if(byte == 0xF3) { CurrentPosition.track[tk].ptr += 1; return; }
-        if(byte == 0xF2) { CurrentPosition.track[tk].ptr += 2; return; }
+        else
+        {
+            // Any normal event (80..EF)
+            if(byte < 0x80) // Running status
+              { byte = CurrentPosition.track[tk].status | 0x80;
+                CurrentPosition.track[tk].ptr--; }
+            length = MidiEventLength(byte);
+        }
+        evh->HandleEvent(current_device[tk], byte, &TrackData[tk][CurrentPosition.track[tk].ptr], length);
+        if((byte&0xF0) == 0x90) // First note
+            CurrentPosition.began  = true;
+        CurrentPosition.track[tk].ptr += length;
         /*UI.PrintLn("@%X Track %u: %02X %02X",
             CurrentPosition.track[tk].ptr-1, (unsigned)tk, byte,
             TrackData[tk][CurrentPosition.track[tk].ptr]);*/
-        unsigned MidCh = byte & 0x0F, EvType = byte >> 4;
-        MidCh += current_device[tk];
-
         CurrentPosition.track[tk].status = byte;
-        switch(EvType)
-        {
-            case 0x8: // Note off
-            {
-                int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                // Note-off volume is unused
-                CurrentPosition.track[tk].ptr++;
-                evh->NoteOff(MidCh, note);
-                break;
-            }
-            case 0x9: // Note on
-            {
-                int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                evh->NoteOn(MidCh, note, vol);
-                CurrentPosition.began  = true;
-                break;
-            }
-            case 0xA: // Note touch
-            {
-                int note = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                evh->NoteTouch(MidCh, note, vol);
-                break;
-            }
-            case 0xB: // Controller change
-            {
-                int ctrlno = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                int  value = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                evh->ControllerChange(MidCh, ctrlno, value);
-                break;
-            }
-            case 0xC: // Patch change
-                evh->PatchChange(MidCh, TrackData[tk][CurrentPosition.track[tk].ptr++]);
-                break;
-            case 0xD: // Channel after-touch
-            {
-                int  vol = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                evh->ChannelAfterTouch(MidCh, vol);
-                break;
-            }
-            case 0xE: // Wheel/pitch bend
-            {
-                int a = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                int b = TrackData[tk][CurrentPosition.track[tk].ptr++];
-                evh->WheelPitchBend(MidCh, a, b);
-                break;
-            }
-        }
     }
-
 };
 
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */

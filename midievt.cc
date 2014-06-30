@@ -1076,6 +1076,65 @@ void MIDIeventhandler::WheelPitchBend(int MidCh, int a, int b)
     NoteUpdate_All(MidCh, Upd_Pitch);
 }
 
+void MIDIeventhandler::HandleEvent(int chanofs, unsigned char byte, const unsigned char *data, unsigned length)
+{
+    if(byte == 0xF7 || byte == 0xF0) // Ignore SysEx
+    {
+        UI.PrintLn("SysEx %02X: %u bytes", byte, length);
+        return;
+    }
+    unsigned MidCh = chanofs + (byte & 0x0F), EvType = byte >> 4;
+    if(MidCh >= Ch.size() || length < MidiEventLength(byte))
+        return;
+    switch(EvType)
+    {
+        case 0x8: // Note off
+        {
+            int note = data[0];
+            // Note-off volume is unused
+            NoteOff(MidCh, note);
+            break;
+        }
+        case 0x9: // Note on
+        {
+            int note = data[0];
+            int  vol = data[1];
+            NoteOn(MidCh, note, vol);
+            break;
+        }
+        case 0xA: // Note touch
+        {
+            int note = data[0];
+            int  vol = data[1];
+            NoteTouch(MidCh, note, vol);
+            break;
+        }
+        case 0xB: // Controller change
+        {
+            int ctrlno = data[0];
+            int  value = data[1];
+            ControllerChange(MidCh, ctrlno, value);
+            break;
+        }
+        case 0xC: // Patch change
+            PatchChange(MidCh, data[0]);
+            break;
+        case 0xD: // Channel after-touch
+        {
+            int  vol = data[0];
+            ChannelAfterTouch(MidCh, vol);
+            break;
+        }
+        case 0xE: // Wheel/pitch bend
+        {
+            int a = data[0];
+            int b = data[1];
+            WheelPitchBend(MidCh, a, b);
+            break;
+        }
+    }
+}
+
 void MIDIeventhandler::Reset()
 {
     opl.Reset(); // Reset AdLib
