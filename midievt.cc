@@ -1082,6 +1082,7 @@ void MIDIeventhandler::Reset()
     //opl.Reset(); // ...twice (just in case someone misprogrammed OPL3 previously)
     ch.clear();
     ch.resize(opl.NumChannels);
+    Ch.clear();
     SetNumChannels(16);
 }
 
