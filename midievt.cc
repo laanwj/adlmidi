@@ -1076,22 +1076,13 @@ void MIDIeventhandler::WheelPitchBend(int MidCh, int a, int b)
     NoteUpdate_All(MidCh, Upd_Pitch);
 }
 
-unsigned MIDIeventhandler::ChooseDevice(const std::string& name)
-{
-    std::map<std::string, unsigned>::iterator i = devices.find(name);
-    if(i != devices.end()) return i->second;
-    size_t n = devices.size() * 16;
-    devices.insert( std::make_pair(name, n) );
-    Ch.resize(n+16);
-    return n;
-}
-
 void MIDIeventhandler::Reset()
 {
     opl.Reset(); // Reset AdLib
     //opl.Reset(); // ...twice (just in case someone misprogrammed OPL3 previously)
     ch.clear();
     ch.resize(opl.NumChannels);
+    SetNumChannels(16);
 }
 
 void MIDIeventhandler::Tick(double s)
@@ -1101,5 +1092,10 @@ void MIDIeventhandler::Tick(double s)
 
     UpdateVibrato(s);
     UpdateArpeggio(s);
+}
+
+void MIDIeventhandler::SetNumChannels(int channels)
+{
+    Ch.resize(channels);
 }
 

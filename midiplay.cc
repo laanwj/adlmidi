@@ -52,6 +52,7 @@ bool ScaleModulators = false;
 // Read midi file and play back events
 class MIDIplay
 {
+    std::map<std::string, unsigned> devices;
     // Information about each track
     struct Position
     {
@@ -276,6 +277,16 @@ public:
         return CurrentPosition.wait;
     }
 
+    unsigned ChooseDevice(const std::string& name)
+    {
+        std::map<std::string, unsigned>::iterator i = devices.find(name);
+        if(i != devices.end()) return i->second;
+        size_t n = devices.size() * 16;
+        devices.insert( std::make_pair(name, n) );
+        evh->SetNumChannels(n + 16);
+        return n;
+    }
+
 private:
 
     void ProcessEvents()
@@ -363,7 +374,7 @@ private:
             if(evtype == 0x51) { Tempo = InvDeltaTicks * fraction<long>( (long) ReadBEInt(data.data(), data.size())); return; }
             if(evtype == 6 && data == "loopStart") loopStart = true;
             if(evtype == 6 && data == "loopEnd"  ) loopEnd   = true;
-            if(evtype == 9) current_device[tk] = evh->ChooseDevice(data);
+            if(evtype == 9) current_device[tk] = ChooseDevice(data);
             if(evtype >= 1 && evtype <= 6)
                 UI.PrintLn("Meta %d: %s", evtype, data.c_str());
 
@@ -1086,8 +1097,8 @@ int main(int argc, char** argv)
     std::fflush(stdout);
 
     MIDIeventhandler evh;
-    evh.ChooseDevice("");
     MIDIplay player(&evh);
+    player.ChooseDevice("");
     if(!player.LoadMIDI(argv[1]))
         return 2;
 

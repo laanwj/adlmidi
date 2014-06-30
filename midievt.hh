@@ -35,8 +35,6 @@ public:
 // Process MIDI events and send them to OPL
 class MIDIeventhandler
 {
-    std::map<std::string, unsigned> devices;
-
     // Persistent settings for each MIDI channel
     struct MIDIchannel
     {
@@ -145,7 +143,7 @@ public:
     void PatchChange(int MidCh, int patch);
     void ChannelAfterTouch(int MidCh, int vol);
     void WheelPitchBend(int MidCh, int a, int b);
-    unsigned ChooseDevice(const std::string& name);
+    void SetNumChannels(int channels);
     void Reset();
     void Tick(double s);
 };
