@@ -28,6 +28,7 @@ extern bool WritePCMfile;
 extern bool ScaleModulators;
 extern OPLEmuType EmuType;
 extern bool FullPan;
+extern bool AllowBankSwitch;
 
 #endif
 

@@ -40,6 +40,7 @@ bool WritePCMfile = false;
 bool ScaleModulators = false;
 OPLEmuType EmuType = OPLEMU_DBOPLv2;
 bool FullPan = false;
+bool AllowBankSwitch = false;
 
 int ParseArguments(int argc, char **argv)
 {
@@ -57,6 +58,7 @@ int ParseArguments(int argc, char **argv)
             " -w Write WAV file rather than playing\n"
             " -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)\n"
             " -fp Enable full stereo panning\n"
+            " -bs Allow bank switch (Bank LSB changes bank)\n"
         );
         for(unsigned a=0; a<sizeof(banknames)/sizeof(*banknames); ++a)
             std::printf("%10s%2u = %s\n",
@@ -112,6 +114,8 @@ int ParseArguments(int argc, char **argv)
 		return 0;
 	    }
 	}
+        else if(!std::strcmp("-bs", argv[2]))
+            AllowBankSwitch = true;
         else break;
 
         for(int p=2; p<argc; ++p) argv[p] = argv[p+1];
@@ -120,7 +124,6 @@ int ParseArguments(int argc, char **argv)
 
     if(argc >= 3)
     {
-        const unsigned NumBanks = sizeof(banknames)/sizeof(*banknames);
         int bankno = std::atoi(argv[2]);
         AdlBank = bankno;
         if(AdlBank >= NumBanks)

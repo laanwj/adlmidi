@@ -399,7 +399,13 @@ MIDIeventhandler::MIDIchannel::MIDIchannel()
               vibpos(0), vibspeed(2*3.141592653*5.0),
               vibdepth(0.5/127), vibdelay(0),
               lastlrpn(0),lastmrpn(0),nrpn(false),
-              activenotes() { }
+              activenotes()
+{
+    if(AllowBankSwitch)
+    {
+        bank_lsb = AdlBank;
+    }
+}
 
 MIDIeventhandler::AdlChannel::AdlChannel(): users(), koff_time_until_neglible(0) { }
 
@@ -899,36 +905,46 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
     */
     //if(midiins == 56) vol = vol*6/10; // HACK
 
-    static std::set<unsigned> bank_warnings;
-    if(Ch[MidCh].bank_msb)
+    int bank = AdlBank;
+    if(!AllowBankSwitch)
     {
-        unsigned bankid = midiins + 256*Ch[MidCh].bank_msb;
-        std::set<unsigned>::iterator
-            i = bank_warnings.lower_bound(bankid);
-        if(i == bank_warnings.end() || *i != bankid)
+        static std::set<unsigned> bank_warnings;
+        if(Ch[MidCh].bank_msb)
         {
-            UI.PrintLn("[%u]Bank %u undefined, patch=%c%u",
-                MidCh,
-                Ch[MidCh].bank_msb,
-                (midiins&128)?'P':'M', midiins&127);
-            bank_warnings.insert(i, bankid);
+            unsigned bankid = midiins + 256*Ch[MidCh].bank_msb;
+            std::set<unsigned>::iterator
+                i = bank_warnings.lower_bound(bankid);
+            if(i == bank_warnings.end() || *i != bankid)
+            {
+                UI.PrintLn("[%u]Bank %u undefined, patch=%c%u",
+                    MidCh,
+                    Ch[MidCh].bank_msb,
+                    (midiins&128)?'P':'M', midiins&127);
+                bank_warnings.insert(i, bankid);
+            }
+        }
+        if(Ch[MidCh].bank_lsb)
+        {
+            unsigned bankid = Ch[MidCh].bank_lsb*65536;
+            std::set<unsigned>::iterator
+                i = bank_warnings.lower_bound(bankid);
+            if(i == bank_warnings.end() || *i != bankid)
+            {
+                UI.PrintLn("[%u]Bank lsb %u undefined",
+                    MidCh,
+                    Ch[MidCh].bank_lsb);
+                bank_warnings.insert(i, bankid);
+            }
         }
     }
-    if(Ch[MidCh].bank_lsb)
+    else
     {
-        unsigned bankid = Ch[MidCh].bank_lsb*65536;
-        std::set<unsigned>::iterator
-            i = bank_warnings.lower_bound(bankid);
-        if(i == bank_warnings.end() || *i != bankid)
-        {
-            UI.PrintLn("[%u]Bank lsb %u undefined",
-                MidCh,
-                Ch[MidCh].bank_lsb);
-            bank_warnings.insert(i, bankid);
-        }
+        bank = Ch[MidCh].bank_lsb;
+        if(bank < 0 || bank >= (int)NumBanks)
+            bank = 0;
     }
 
-    int meta = banks[AdlBank][midiins];
+    int meta = banks[bank][midiins];
     int tone = note;
     if(adlins[meta].tone)
     {
@@ -1053,6 +1069,13 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
             Ch[MidCh].bank_msb = value;
             break;
         case 32: // Set bank lsb (XG bank)
+            if(AllowBankSwitch)
+            {
+                if(value >= 0 && value < (int)NumBanks)
+                    UI.PrintLn("[%u] Using bank %d '%s'", MidCh, value, banknames[value]);
+                else
+                    UI.PrintLn("[%u] Using undefined bank %d", MidCh, value);
+            }
             Ch[MidCh].bank_lsb = value;
             break;
         case 5: // Set portamento msb
