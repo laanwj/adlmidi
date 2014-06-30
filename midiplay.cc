@@ -256,6 +256,8 @@ public:
         loopStart = true;
 
         evh->Reset();
+        devices.clear();
+        ChooseDevice("");
 
         return true;
     }
@@ -1098,7 +1100,6 @@ int main(int argc, char** argv)
 
     MIDIeventhandler evh;
     MIDIplay player(&evh);
-    player.ChooseDevice("");
     if(!player.LoadMIDI(argv[1]))
         return 2;
 
