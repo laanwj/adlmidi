@@ -500,7 +500,7 @@ void SendStereoAudio(unsigned long count, int* samples)
 void AudioWait(double OurHeadRoomLength)
 {
 #ifndef __WIN32__
-    size_t min_samples = obtained.samples + (obtained.freq*2) * OurHeadRoomLength;
+    size_t min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
     while(true)
     {
         AudioBuffer_lock.Lock();
