@@ -64,6 +64,7 @@ Usage: adlmidi <midifilename> [ <options> ] [ <banknumber> [ <numcards> [ <numfo
  -w Write WAV file rather than playing
  -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)
  -fp Enable full stereo panning
+ -bs Allow bank switch (Bank LSB changes bank)
     Banks: 0 = AIL (Star Control 3, Albion, Empire 2, Sensible Soccer, Settlers 2, many others)
            1 = Bisqwit (selection of 4op and 2op)
            2 = HMI (Descent, Asterix)
