@@ -34,9 +34,6 @@ public:
     int AllocateColor(int ins);
     // Cleanup before exit
     void Cleanup();
-
-private:
-    void prn(const char* fmt, ...);
 };
 
 extern class UI UI;

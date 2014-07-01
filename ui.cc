@@ -77,7 +77,7 @@ UI::UI(): x(0), y(0), color(-1), txtline(1),
     std::memset(background, '.', sizeof(background));
     std::fputc('\r', stderr); // Ensure cursor is at x=0
     GotoXY(0,0); Color(15);
-    prn("Hit Ctrl-C to quit\r");
+    std::fputs("Hit Ctrl-C to quit\r", stderr);
 
     for(unsigned ch=0; ch<MaxHeight; ++ch)
         curpatch[ch] = -1;
@@ -94,7 +94,7 @@ void UI::HideCursor()
       return;
     }
   #endif
-    prn("\33[?25l"); // hide cursor
+    std::fputs("\33[?25l", stderr); // hide cursor
 }
 void UI::ShowCursor()
 {
@@ -109,7 +109,7 @@ void UI::ShowCursor()
       return;
     }
   #endif
-    prn("\33[?25h"); // show cursor
+    std::fputs("\33[?25h", stderr); // show cursor
     std::fflush(stderr);
 }
 void UI::PrintLn(const char* fmt, ...)
@@ -269,14 +269,14 @@ void UI::GotoXY(int newx, int newy)
       SetConsoleCursorPosition(handle, tmp2);
     }
   #endif
-    if(newy < y) { prn("\33[%dA", y-newy); y = newy; }
-    if(newy > y) { prn("\33[%dB", newy-y); y = newy; }
+    if(newy < y) { std::fprintf(stderr, "\33[%dA", y-newy); y = newy; }
+    if(newy > y) { std::fprintf(stderr, "\33[%dB", newy-y); y = newy; }
     if(newx != x)
     {
         if(newx == 0 || (newx<10 && std::abs(newx-x)>=10))
             { std::fputc('\r', stderr); x = 0; }
-        if(newx < x) prn("\33[%dD", x-newx);
-        if(newx > x) prn("\33[%dC", newx-x);
+        if(newx < x) std::fprintf(stderr, "\33[%dD", x-newx);
+        if(newx > x) std::fprintf(stderr, "\33[%dC", newx-x);
         x = newx;
     }
 }
@@ -292,13 +292,13 @@ void UI::Color(int newcolor)
       #endif
         {
           static const char map[8+1] = "04261537";
-          prn("\33[0;%s3%c",
+          std::fprintf(stderr, "\33[0;%s3%c",
               (newcolor&8) ? "1;" : "", map[newcolor&7]);
           // If xterm-256color is used, try using improved colors:
           //        Translate 8 (dark gray) into #003366 (bluish dark cyan)
           //        Translate 1 (dark blue) into #000033 (darker blue)
-          if(newcolor==8) prn(";38;5;24;25");
-          if(newcolor==1) prn(";38;5;17;25");
+          if(newcolor==8) fputs(";38;5;24;25", stderr);
+          if(newcolor==1) fputs(";38;5;17;25", stderr);
           std::fputc('m', stderr);
         }
         color=newcolor;
@@ -322,21 +322,13 @@ int UI::AllocateColor(int ins)
     }
 }
 
-void UI::prn(const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
-
 void UI::Cleanup()
 {
     ShowCursor();
 #ifdef __WIN32__
     Color(7);
 #else
-    prn("\33[0m");
+    std::fputs("\33[0m", stderr);
 #endif
     std::fflush(stderr);
 }
