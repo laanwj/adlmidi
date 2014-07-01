@@ -120,6 +120,12 @@ midievt.o: midievt.cc adldata.hh
 ui.o: ui.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
 
+audioout.o: audioout.cc audioout.hh
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
+
+parseargs.o: parseargs.cc parseargs.hh
+	$(CXX) $(CPPFLAGS) $<  $(DEBUG) $(SDL) -c -o $@ 
+
 adldata.o: adldata.cc adldata.hh
 	$(CXX) $(CPPFLAGS) $<  $(DEBUG)  -c -o $@ 
 
