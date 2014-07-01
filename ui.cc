@@ -250,11 +250,15 @@ void UI::IllustratePatchChange(int MidCh, int patch)
 // to the current cursor position only.
 void UI::GotoXY(int newx, int newy)
 {
-    if(newy > maxy) maxy = newy;
-    while(newy > y)
+    if(newy > maxy || (newy > y && (newy-y)<4 && newx == 0))
     {
-        std::fputc('\n', stderr); y+=1; x=0;
+        while(newy > y)
+        {
+            std::fputc('\n', stderr); y+=1; x=0;
+        }
     }
+    if(newy > maxy)
+        maxy = newy;
   #ifdef __WIN32__
     if(handle)
     {
@@ -266,6 +270,7 @@ void UI::GotoXY(int newx, int newy)
     }
   #endif
     if(newy < y) { prn("\33[%dA", y-newy); y = newy; }
+    if(newy > y) { prn("\33[%dB", newy-y); y = newy; }
     if(newx != x)
     {
         if(newx == 0 || (newx<10 && std::abs(newx-x)>=10))
