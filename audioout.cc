@@ -263,7 +263,6 @@ static CondType AudioBuffer_cond;
 
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
-    SDL_LockAudio();
     short* target = (short*) stream;
     AudioBuffer_lock.Lock();
     /*if(len != AudioBuffer.size())
@@ -277,7 +276,6 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
     AudioBuffer.erase(AudioBuffer.begin(), i);
     //fprintf(stderr, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
     AudioBuffer_lock.Unlock();
-    SDL_UnlockAudio();
     AudioBuffer_cond.Signal();
 }
 #endif // WIN32
