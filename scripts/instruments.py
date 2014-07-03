@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 '''Determine ASCII/unicode symbols for midi instruments'''
+from __future__ import division, print_function
 from collections import defaultdict
+import colorsys
+import itertools
 # Ideas:
 #   fix attributes per glyph
 #   background color (dark grey, grey, ...)
@@ -225,11 +228,9 @@ GMP = {
 }
 
 def compute_intensity(rr,gg,bb):
-    #return 0.2125 * rr + 0.7154 * gg + 0.0721 * bb
-    return rr + gg + bb
+    return 0.2125 * rr + 0.7154 * gg + 0.0721 * bb
 
 if __name__ == '__main__':
-    import random
     syms = defaultdict(int)
     for ins,ch in enumerate(MIDIsymbols):
         name = None
@@ -248,6 +249,28 @@ if __name__ == '__main__':
         count = syms[key]
         print('%i:%s %i' % (int(key[0]), key[1], count))
 
+    class Color(object):
+        def __init__(self, colid, rr, gg, bb):
+            self.intensity = compute_intensity(rr,gg,bb)
+            self.colid = colid
+            self.r = rr
+            self.g = gg
+            self.b = bb
+            (hh,ss,vv) = colorsys.rgb_to_hsv(rr,gg,bb)
+            if ss == 0: # monochromes into one bin
+                hh = vv # 'random' sort order
+                ss = 0.51  # lighter colors are more 'saturated'
+            self.h = hh
+            self.s = ss
+            self.v = vv
+
+        def hue_difference(self, o):
+            # could be weighted according to sensitivity
+            return abs(self.h - o.h)
+
+        def colorize(self, s):
+            return "\x1b[0;38;5;%im%s\x1b[0m" % (self.colid, s)
+
     # color allocation: make list of colors
     colors = []
     for r in range(0,6):
@@ -256,34 +279,106 @@ if __name__ == '__main__':
                 rr = r / 5.0
                 gg = g / 5.0
                 bb = b / 5.0
-                intensity = compute_intensity(rr,gg,bb)
                 colid = 16+r*36+g*6+b
-                colors.append((intensity, colid, rr, gg, bb))
+                colors.append(Color(colid, rr, gg, bb))
     for i in range(0,24):
         rr = gg = bb = (8 + i * 10) / 255.0
-        intensity = compute_intensity(rr,gg,bb)
         colid = i + 232
-        colors.append((intensity, colid, rr, gg, bb))
-    # sort by intensity
-    colors.sort()
+        colors.append(Color(colid, rr, gg, bb))
 
-    # filter by intensity
-    available_colors = []
-    nomono = False # no monochrome
-    for (intensity, colid, r, g, b) in colors:
-        if nomono:
-            if intensity >= 0.25 and r!=g and g!=b:
-                available_colors.append((intensity, colid, r, g, b))
-        else:
-            if intensity >= 0.25:
-                available_colors.append((intensity, colid, r, g, b))
+    # sort into bins
+    bins = defaultdict(list)
+    for c in colors:
+        bins[c.v,c.s].append(c)
+
+    # sort bins by hue
+    colors_sorted = []
+    for key in sorted(bins.keys()):
+        bin = bins[key]
+        bin.sort(key=lambda c:(c.h,c.s,c.v))
+        '''
+        # throw away hues too close together
+        u = [] 
+        v = []
+        prev = None
+        for c in bin:
+            if prev == None:
+                u.append(c)
+                prev = c
+                continue
+            diff = abs(c[5] - prev[5])
+            if diff > 0.10:
+                u.append(c)
+                prev = c
+            else:
+                v.append(c)
+
+        colors_sorted.extend(u + v)
+        '''
+        colors_sorted.extend(bin)
+
+    #colors_sorted = sorted(available_colors, key=lambda c:(colorsys.rgb_to_hsv(c[2],c[3],c[4])[0]))
+    for c in colors_sorted:
+        print('\x1b[0;38;5;%imc\x1b[0m  %.02f %.02f %.02f = %3i int=%.2f h=%.2f s=%.2f v=%.2f' % (c.colid,c.r,c.g,c.b,c.colid,c.intensity,c.h,c.s,c.v))
+
+    # selection filter
+    all_colors = [[],[]]
+    for c in colors_sorted:
+        if c.v > 0.6 and c.s > 0.5: # v threshold
+            # keep the bright and nice colors for instruments
+            all_colors[0].append(c)
+        elif c.v > 0.2:
+            # leave the rest for drums, if not too dark
+            all_colors[1].append(c)
     
-    #for (intensity, colid, r, g, b) in available_colors:
-    #    print('\x1b[0;38;5;%im %.02f %.02f %.02f = %3i  int=%f\x1b[0m' % (colid,r,g,b,colid,intensity))
+    # sort by hue
+    for x in [0,1]:
+        all_colors[x].sort(key=lambda c:c.h)
 
-    available = [colid for (_, colid, _, _, _) in available_colors]
-    split = len(available)//2
-    all_colors = [available[split:], available[0:split]]
+    # bucket per hue
+    def colorlist_str(b):
+        return ''.join(c.colorize('X') for c in b)
+
+    for cols in all_colors:
+        idx = 0
+        BUCKETS=16
+        buckets = [[] for x in range(BUCKETS)]
+        prev = None
+        for c in cols:
+            buckets[min(int(c.h * BUCKETS),BUCKETS-1)].append(c)
+        print("Buckets")
+        chance = []
+        for i,b in enumerate(buckets):
+            b.sort(key=lambda c:c.intensity)
+            if i%2: # ramp up/down alternatingly to alternate bright and darker colors
+                half = len(b)//2
+                b = b[half:] + b[0:half]
+            print(colorlist_str(b))
+            chance.append(len(b))
+
+        maxlen = max(chance)
+        chance = [c/maxlen for c in chance]
+        out = []
+        nums = [0.5 for c in chance]
+        while len(out) < len(cols):
+            for i,x in enumerate(buckets):
+                nums[i] += chance[i]
+                if x and nums[i] >= 1:
+                    out.append(x.pop())
+                    nums[i] -= 1.0
+        cols[:] = out
+    '''
+    # shuffle assign order a bit (but in predictable pattern)
+    SHUFFLE=20
+    for cols in all_colors:
+        u = [[] for x in range(SHUFFLE)]
+        for i,c in enumerate(cols):
+            u[i%SHUFFLE].append(c)
+        cols[:] = list(itertools.chain.from_iterable(u)) 
+    '''
+    # convert color tuples to loose color codes
+    for x in [0,1]:
+        all_colors[x] = [c.colid for c in all_colors[x]]
     
     print('Available colors')
     print('instruments (%i): ' % len(all_colors[0]))
@@ -292,13 +387,25 @@ if __name__ == '__main__':
     print(''.join(('\x1b[0;38;5;%imD\x1b[0m' % (colid)) for colid in all_colors[1]))
 
     # Color allocation
-    available = {}
+    #available = {}
+    #for key in sorted(syms.keys()):
+    #    colors = all_colors[key[0]][:]
+    #    random.shuffle(colors)
+    #    available[key] = colors
+    ptr = [0,0]
+    per_sym = defaultdict(list)
+    SKIP = 1
     for key in sorted(syms.keys()):
-        colors = all_colors[key[0]][:]
-        random.shuffle(colors)
-        available[key] = colors
+        (cat,ch) = key
+        count = syms[key]
+        for x in range(0, count):
+            c = all_colors[cat][ptr[cat]]
+            per_sym[key].append(c)
+            ptr[cat] = (ptr[cat] + SKIP)%len(all_colors[cat])
 
     print('Assigned:')
+    collision = set()
+    syms_out = []
     for ins,ch in enumerate(MIDIsymbols):
         name = None
         if ins < 128:
@@ -306,7 +413,33 @@ if __name__ == '__main__':
         else:
             name = GMP.get(ins-128)
 
-        color = available[ins>=128,ch].pop()
+        #color = available[ins>=128,ch].pop()
+        color = per_sym[ins>=128,ch].pop()
+        if (color,ch) in collision:
+            print("Color/symbol collision detected")
+        collision.add((color, ch))
+        syms_out.append((color, ch))
 
         print('%3i \x1b[0;38;5;%im%s\x1b[0m %s' % (ins,color,ch,name))
-    
+
+    # print in block format
+    s = [] 
+    for x in range(0, 256):
+        s.append('\x1b[0;38;5;%im%s\x1b[0m' % syms_out[x])
+        if (x%16) == 15:
+            s.append('\n')
+    print(''.join(s))
+
+    # write to disk
+    with open('midi_symbols_256.hh', 'w') as f:
+        f.write('/* AUTO-GENERATED by instruments.py */\n')
+        f.write('static const unsigned char MIDIcolors256[256] = {\n')
+        for x in range(0,256):
+            (color,ch) = syms_out[x]
+            f.write("%3i" % (color))
+            if x != 255:
+                f.write(',')
+            if (x % 16)==15:
+                f.write('\n')
+        f.write('};\n')
+

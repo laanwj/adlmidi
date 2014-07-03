@@ -54,6 +54,8 @@ static const char MIDIsymbols[256+1] =
 "????????????????"  // Prc 96-111
 "????????????????"; // Prc 112-127
 
+#include "midi_symbols_256.hh"
+
 UI::UI(): x(0), y(0), color(-1), txtline(1),
       maxy(0), cursor_visible(true)
 {
@@ -290,6 +292,7 @@ void UI::Color(int newcolor)
           SetConsoleTextAttribute(handle, newcolor);
         else
       #endif
+        if(newcolor<16)
         {
           static const char map[8+1] = "04261537";
           std::fprintf(stderr, "\33[0;%s3%c",
@@ -301,12 +304,18 @@ void UI::Color(int newcolor)
           if(newcolor==1) fputs(";38;5;17;25", stderr);
           std::fputc('m', stderr);
         }
+        else
+        {
+          std::fprintf(stderr, "\33[0;38;5;%im", newcolor);
+        }
         color=newcolor;
     }
 }
 // Choose a permanent color for given instrument
 int UI::AllocateColor(int ins)
 {
+    return MIDIcolors256[ins];
+#if 0
     static char ins_colors[256] = { 0 }, ins_color_counter = 0;
     if(ins_colors[ins])
         return ins_colors[ins];
@@ -320,6 +329,7 @@ int UI::AllocateColor(int ins)
         static const char shuffle[] = {10,11,12,13,14,15};
         return ins_colors[ins] = shuffle[ins_color_counter++ % 6];
     }
+#endif
 }
 
 void UI::Cleanup()
