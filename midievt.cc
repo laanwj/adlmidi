@@ -134,10 +134,7 @@ void OPL3IF::NoteOn(unsigned c, double hertz) // Hertz range: 0..131071
     unsigned card = c/23, cc = c%23;
     unsigned x = 0x2000;
     if(hertz < 0 || hertz > 131071) // Avoid infinite loop
-    {
-        UI.PrintLn("Ignored frequency out of range: %.0f", hertz);
         return;
-    }
     while(hertz >= 1023.5) { hertz /= 2.0; x += 0x400; } // Calculate octave
     x += (int)(hertz + 0.5);
     unsigned chn = Channels[cc];

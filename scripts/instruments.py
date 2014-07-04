@@ -271,6 +271,9 @@ if __name__ == '__main__':
         def colorize(self, s):
             return "\x1b[0;38;5;%im%s\x1b[0m" % (self.colid, s)
 
+    def colorlist_str(b,ch='X'):
+        return ''.join(c.colorize(ch) for c in b)
+
     # color allocation: make list of colors
     colors = []
     for r in range(0,6):
@@ -296,35 +299,17 @@ if __name__ == '__main__':
     for key in sorted(bins.keys()):
         bin = bins[key]
         bin.sort(key=lambda c:(c.h,c.s,c.v))
-        '''
-        # throw away hues too close together
-        u = [] 
-        v = []
-        prev = None
-        for c in bin:
-            if prev == None:
-                u.append(c)
-                prev = c
-                continue
-            diff = abs(c[5] - prev[5])
-            if diff > 0.10:
-                u.append(c)
-                prev = c
-            else:
-                v.append(c)
-
-        colors_sorted.extend(u + v)
-        '''
         colors_sorted.extend(bin)
-
-    #colors_sorted = sorted(available_colors, key=lambda c:(colorsys.rgb_to_hsv(c[2],c[3],c[4])[0]))
+   
+    print()
+    print("Available colors")
     for c in colors_sorted:
         print('\x1b[0;38;5;%imc\x1b[0m  %.02f %.02f %.02f = %3i int=%.2f h=%.2f s=%.2f v=%.2f' % (c.colid,c.r,c.g,c.b,c.colid,c.intensity,c.h,c.s,c.v))
 
     # selection filter
     all_colors = [[],[]]
     for c in colors_sorted:
-        if c.v > 0.6 and c.s > 0.5: # v threshold
+        if c.v > 0.2 and c.s > 0.7: # v threshold
             # keep the bright and nice colors for instruments
             all_colors[0].append(c)
         elif c.v > 0.2:
@@ -336,23 +321,25 @@ if __name__ == '__main__':
         all_colors[x].sort(key=lambda c:c.h)
 
     # bucket per hue
-    def colorlist_str(b):
-        return ''.join(c.colorize('X') for c in b)
-
+    # this makes sure that succesive colors in the assign order are sorted by hue
+    # but differ enough to be distinguishable.
+    BUCKETS = 20
     for cols in all_colors:
         idx = 0
-        BUCKETS=16
         buckets = [[] for x in range(BUCKETS)]
         prev = None
         for c in cols:
             buckets[min(int(c.h * BUCKETS),BUCKETS-1)].append(c)
+        print()
         print("Buckets")
         chance = []
         for i,b in enumerate(buckets):
             b.sort(key=lambda c:c.intensity)
             if i%2: # ramp up/down alternatingly to alternate bright and darker colors
+                # ideally we want to pair colors that are sufficiently different, either in
+                # hue, saturation or value to be distinguishable
                 half = len(b)//2
-                b = b[half:] + b[0:half]
+                b[:] = b[half:] + b[0:half]
             print(colorlist_str(b))
             chance.append(len(b))
 
@@ -364,7 +351,7 @@ if __name__ == '__main__':
             for i,x in enumerate(buckets):
                 nums[i] += chance[i]
                 if x and nums[i] >= 1:
-                    out.append(x.pop())
+                    out.append(x.pop(0))
                     nums[i] -= 1.0
         cols[:] = out
     '''
@@ -377,14 +364,11 @@ if __name__ == '__main__':
         cols[:] = list(itertools.chain.from_iterable(u)) 
     '''
     # convert color tuples to loose color codes
-    for x in [0,1]:
-        all_colors[x] = [c.colid for c in all_colors[x]]
-    
     print('Available colors')
     print('instruments (%i): ' % len(all_colors[0]))
-    print(''.join(('\x1b[0;38;5;%imX\x1b[0m' % (colid)) for colid in all_colors[0]))
+    print(colorlist_str(all_colors[0], 'X'))
     print('drums (%i): ' % len(all_colors[1]))
-    print(''.join(('\x1b[0;38;5;%imD\x1b[0m' % (colid)) for colid in all_colors[1]))
+    print(colorlist_str(all_colors[1], 'D'))
 
     # Color allocation
     #available = {}
@@ -403,7 +387,8 @@ if __name__ == '__main__':
             per_sym[key].append(c)
             ptr[cat] = (ptr[cat] + SKIP)%len(all_colors[cat])
 
-    print('Assigned:')
+    print()
+    print('Assigned')
     collision = set()
     syms_out = []
     for ins,ch in enumerate(MIDIsymbols):
@@ -415,12 +400,12 @@ if __name__ == '__main__':
 
         #color = available[ins>=128,ch].pop()
         color = per_sym[ins>=128,ch].pop()
-        if (color,ch) in collision:
+        if (color.colid,ch) in collision:
             print("Color/symbol collision detected")
-        collision.add((color, ch))
-        syms_out.append((color, ch))
+        collision.add((color.colid, ch))
+        syms_out.append((color.colid, ch))
 
-        print('%3i \x1b[0;38;5;%im%s\x1b[0m %s' % (ins,color,ch,name))
+        print('%3i \x1b[0;38;5;%im%s\x1b[0m %s' % (ins,color.colid,ch,name))
 
     # print in block format
     s = [] 
