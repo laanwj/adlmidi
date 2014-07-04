@@ -1277,6 +1277,14 @@ int main()
     LoadDoom("raptor/genmidi.op2", 64, "rapt");
     LoadDoom("doom2/genmidi_freedoom.op2", 65, "fdm");
     LoadDoom("doom2/genmidi_ultdoom.op2", 66, "udm");
+
+    LoadIBK("ibk_files/rott/gmidi.ibk",      67, "RoTT1", false);
+    LoadIBK("ibk_files/rott/percus.ibk",     67, "RoTT1", true);
+    LoadIBK("ibk_files/rott/lee.ibk",        68, "RoTT2", false);
+    LoadIBK("ibk_files/rott/leedrums.ibk",   68, "RoTT2", true);
+    LoadIBK("ibk_files/rott/mymidi.ibk",     69, "RoTT3", false);
+    LoadIBK("ibk_files/rott/percus.ibk",     69, "RoTT3", true);
+
     //LoadBNK("bnk_files/grassman1.bnk", 63, "b63", false);
     //LoadBNK("bnk_files/grassman2.bnk", 64, "b64", false);
 
@@ -1356,7 +1364,10 @@ int main()
      "TMB (Shadow Warrior)",
      "DMX (Raptor)",
      "DMX (Free Doom)",
-     "DMX (Ultimate Doom replacement)"
+     "DMX (Ultimate Doom replacement)",
+     "SB (Rise of the Triad gmidi)",
+     "SB (Rise of the Triad lee)",
+     "SB (Rise of the Triad mymidi)"
     };
 
 #if 0
