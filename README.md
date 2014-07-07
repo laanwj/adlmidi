@@ -166,7 +166,7 @@ number. Four-operator or pseudo-4op instruments will be active on two channels.
 - A colored letter means an instrument is playing at the pitch and on the channel. Each instrument gets
   an unique letter/color if possible.
 - `<` means an instrument was played with a pitch bend.
-- `%` means that the note is sustaining (key released but sound continues).
+- `%` means that the note is releasing (mistakingly, I think, called sustaining in the source).
 
 Diagnostic messages are overlayed on this in blue text.
 
