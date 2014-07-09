@@ -491,7 +491,7 @@ void SendStereoAudio(unsigned long count, float* samples)
     size_t cursize = AudioBuffer.size();
     AudioBuffer_lock.Unlock();
     /* Start SDL audio processing when we have enough samples */
-    if(!audio_started && cursize >= min_samples)
+    if(!WritePCMfile && !audio_started && cursize >= min_samples)
     {
         audio_started = true;
         SDL_PauseAudio(0);
