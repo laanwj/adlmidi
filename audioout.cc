@@ -384,25 +384,28 @@ void SendStereoAudio(unsigned long count, float* samples)
         }
         UI.IllustrateVolumes(amp[0], amp[1]);
     }
-#ifdef USE_REVERB
-    // Convert input to float format
+
     std::vector<float> dry[2];
-    for(unsigned w=0; w<2; ++w)
+    if(EnableReverb)
     {
-        dry[w].resize(count);
-        const float a = average_flt[w];
-        for(unsigned long p = 0; p < count; ++p)
+        // Insert input into reverb fifo
+        for(unsigned w=0; w<2; ++w)
         {
-            dry[w][p] = samples[p*2+w] - a;
+            dry[w].resize(count);
+            const float a = average_flt[w];
+            for(unsigned long p = 0; p < count; ++p)
+            {
+                dry[w][p] = samples[p*2+w] - a;
+            }
+            // ^  Note: ftree-vectorize causes an error in this loop on g++-4.4.5
+            reverb_data.chan[w].input_fifo.insert(
+            reverb_data.chan[w].input_fifo.end(),
+                dry[w].begin(), dry[w].end());
         }
-        // ^  Note: ftree-vectorize causes an error in this loop on g++-4.4.5
-        reverb_data.chan[w].input_fifo.insert(
-        reverb_data.chan[w].input_fifo.end(),
-            dry[w].begin(), dry[w].end());
+        // Reverbify it
+        for(unsigned w=0; w<2; ++w)
+            reverb_data.chan[w].Process(count);
     }
-    // Reverbify it
-    for(unsigned w=0; w<2; ++w)
-        reverb_data.chan[w].Process(count);
 
     // Convert to signed 16-bit int format and put to playback queue
 #ifdef __WIN32__
@@ -411,16 +414,32 @@ void SendStereoAudio(unsigned long count, float* samples)
 #else
     AudioBuffer_lock.Lock();
 #endif
-    for(unsigned long p = 0; p < count; ++p)
-        for(unsigned w=0; w<2; ++w)
+    if(EnableReverb)
+    {
+        for(unsigned long p = 0; p < count; ++p)
         {
-            float out = ((1 - reverb_data.wetonly) * dry[w][p] +
-                .5 * (reverb_data.chan[0].out[w][p]
-                    + reverb_data.chan[1].out[w][p])) * 32768.0f;
-            AudioBuffer.push_back(
-                out<-32768.f ? -32768 :
-                out>32767.f ?  32767 : out);
+            for(unsigned w=0; w<2; ++w)
+            {
+                float out = ((1 - reverb_data.wetonly) * dry[w][p] +
+                    .5 * (reverb_data.chan[0].out[w][p]
+                        + reverb_data.chan[1].out[w][p])) * SAMPLE_MULT_FACTOR;
+                AudioBuffer.push_back(
+                    out<-32768.f ? -32768 :
+                    out>32767.f ?  32767 : out);
+            }
         }
+    } else {
+        for(unsigned long p = 0; p < count; ++p)
+        {
+            for(unsigned w = 0; w < 2; ++w)
+            {
+                int out = (samples[p*2 + w] - average_flt[w]) * SAMPLE_MULT_FACTOR;
+                AudioBuffer.push_back(
+                    out<-32768 ? -32768 :
+                    out>32767 ? 32767 : out);
+            }
+        }
+    }
     if(WritePCMfile)
     {
         /* HACK: Cheat on DOSBox recording: Record audio separately on Windows. */
@@ -470,26 +489,14 @@ void SendStereoAudio(unsigned long count, float* samples)
         //if(std::ftell(fp) >= 48000*4*10*60)
         //    raise(SIGINT);
     }
+    size_t cursize = AudioBuffer.size();
 #ifndef __WIN32__
     AudioBuffer_lock.Unlock();
 #else
     if(!WritePCMfile)
         WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], 2*AudioBuffer.size());
 #endif
-#else
-    AudioBuffer_lock.Lock();
-    for(unsigned long p = 0; p < count; ++p)
-    {
-        for(unsigned w = 0; w < 2; ++w)
-        {
-            int out = (samples[p*2 + w] - average_flt[w]) * SAMPLE_MULT_FACTOR;
-            AudioBuffer.push_back(
-                out<-32768 ? -32768 :
-                out>32767 ? 32767 : out);
-        }
-    }
-    size_t cursize = AudioBuffer.size();
-    AudioBuffer_lock.Unlock();
+#ifndef __WIN32__
     /* Start SDL audio processing when we have enough samples */
     if(!WritePCMfile && !audio_started && cursize >= min_samples)
     {

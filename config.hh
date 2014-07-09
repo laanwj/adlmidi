@@ -29,6 +29,7 @@ extern bool ScaleModulators;
 extern OPLEmuType EmuType;
 extern bool FullPan;
 extern bool AllowBankSwitch;
+extern bool EnableReverb;
 
 #endif
 

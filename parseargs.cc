@@ -41,6 +41,7 @@ bool ScaleModulators = false;
 OPLEmuType EmuType = OPLEMU_DBOPLv2;
 bool FullPan = false;
 bool AllowBankSwitch = false;
+bool EnableReverb = true;
 
 int ParseArguments(int argc, char **argv)
 {
@@ -59,6 +60,7 @@ int ParseArguments(int argc, char **argv)
             " -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)\n"
             " -fp Enable full stereo panning\n"
             " -bs Allow bank switch (Bank LSB changes bank)\n"
+            " -noreverb Disable reverb\n"
         );
         for(unsigned a=0; a<sizeof(banknames)/sizeof(*banknames); ++a)
             std::printf("%10s%2u = %s\n",
@@ -116,6 +118,8 @@ int ParseArguments(int argc, char **argv)
 	}
         else if(!std::strcmp("-bs", argv[2]))
             AllowBankSwitch = true;
+        else if(!std::strcmp("-noreverb", argv[2]))
+            EnableReverb = false;
         else break;
 
         for(int p=2; p<argc; ++p) argv[p] = argv[p+1];
