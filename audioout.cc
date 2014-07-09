@@ -138,6 +138,7 @@ static struct MyReverbData
 } reverb_data;
 
 #ifdef __WIN32__
+typedef std::vector<short> AudioBufferType;
 namespace WindowsAudio
 {
   static const unsigned BUFFER_COUNT = 16;
@@ -256,8 +257,9 @@ namespace WindowsAudio
   }
 }
 #else
+typedef std::deque<short> AudioBufferType;
 static SDL_AudioSpec obtained;
-static std::deque<short> AudioBuffer;
+static AudioBufferType AudioBuffer;
 static MutexType AudioBuffer_lock;
 static CondType AudioBuffer_cond;
 static size_t min_samples;
@@ -417,12 +419,10 @@ void SendStereoAudio(unsigned long count, float* samples)
 
     // Convert to signed 16-bit int format and put to playback queue
 #ifdef __WIN32__
-    std::vector<short> AudioBuffer(count*2);
-    const size_t pos = 0;
+    AudioBufferType AudioBuffer;
+    AudioBuffer.reserve(count*2);
 #else
     AudioBuffer_lock.Lock();
-    size_t pos = AudioBuffer.size();
-    AudioBuffer.resize(pos + count*2);
 #endif
     for(unsigned long p = 0; p < count; ++p)
         for(unsigned w=0; w<2; ++w)
@@ -431,9 +431,9 @@ void SendStereoAudio(unsigned long count, float* samples)
                 .5 * (reverb_data.chan[0].out[w][p]
                     + reverb_data.chan[1].out[w][p])) * 32768.0f
                  + average_flt[w];
-            AudioBuffer[pos+p*2+w] =
+            AudioBuffer.push_back(
                 out<-32768.f ? -32768 :
-                out>32767.f ?  32767 : out;
+                out>32767.f ?  32767 : out);
         }
     if(WritePCMfile)
     {
@@ -461,8 +461,8 @@ void SendStereoAudio(unsigned long count, float* samples)
 
         // Using a loop, because our data type is a deque, and
         // the data might not be contiguously stored in memory.
-        for(unsigned long p = 0; p < 2*count; ++p)
-            std::fwrite(&AudioBuffer[pos+p], 1, 2, fp);
+        for(AudioBufferType::iterator i = AudioBuffer.begin(); i != AudioBuffer.end(); ++i)
+            std::fwrite(&(*i), 1, 2, fp);
 
         /* Update the WAV header */
         if(true)
@@ -504,7 +504,6 @@ void SendStereoAudio(unsigned long count, float* samples)
     }
     size_t cursize = AudioBuffer.size();
     AudioBuffer_lock.Unlock();
-
     /* Start SDL audio processing when we have enough samples */
     if(!audio_started && cursize >= min_samples)
     {
