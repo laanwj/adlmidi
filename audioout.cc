@@ -385,28 +385,15 @@ void SendStereoAudio(unsigned long count, float* samples)
         UI.IllustrateVolumes(amp[0], amp[1]);
     }
 #ifdef USE_REVERB
-    //static unsigned counter = 0; if(++counter < 8000)  return;
-
-#if defined(__WIN32__) && 0
-    // Cheat on dosbox recording: easier on the cpu load.
-   {count*=2;
-    std::vector<short> AudioBuffer(count);
-    for(unsigned long p = 0; p < count; ++p)
-        AudioBuffer[p] = samples[p];
-    WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], count*2);
-    return;}
-#endif
-
     // Convert input to float format
     std::vector<float> dry[2];
     for(unsigned w=0; w<2; ++w)
     {
         dry[w].resize(count);
-        float a = average_flt[w];
+        const float a = average_flt[w];
         for(unsigned long p = 0; p < count; ++p)
         {
-            int   s = samples[p*2+w];
-            dry[w][p] = (s - a) * double(0.3/32768.0);
+            dry[w][p] = samples[p*2+w] - a;
         }
         // ^  Note: ftree-vectorize causes an error in this loop on g++-4.4.5
         reverb_data.chan[w].input_fifo.insert(
