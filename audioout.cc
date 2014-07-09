@@ -416,8 +416,7 @@ void SendStereoAudio(unsigned long count, float* samples)
         {
             float out = ((1 - reverb_data.wetonly) * dry[w][p] +
                 .5 * (reverb_data.chan[0].out[w][p]
-                    + reverb_data.chan[1].out[w][p])) * 32768.0f
-                 + average_flt[w];
+                    + reverb_data.chan[1].out[w][p])) * 32768.0f;
             AudioBuffer.push_back(
                 out<-32768.f ? -32768 :
                 out>32767.f ?  32767 : out);
