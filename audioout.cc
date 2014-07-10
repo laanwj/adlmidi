@@ -488,6 +488,7 @@ void SendStereoAudio(unsigned long count, float* samples)
 
         //if(std::ftell(fp) >= 48000*4*10*60)
         //    raise(SIGINT);
+        AudioBuffer.clear(); // Clear buffer after writing
     }
     size_t cursize = AudioBuffer.size();
 #ifndef __WIN32__
@@ -513,6 +514,8 @@ void SendStereoAudio(unsigned long count, float* samples)
 
 void AudioWait()
 {
+    if(WritePCMfile)
+        return;
 #ifndef __WIN32__
     while(true)
     {
