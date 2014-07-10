@@ -385,22 +385,22 @@ void SendStereoAudio(unsigned long count, float* samples)
         UI.IllustrateVolumes(amp[0], amp[1]);
     }
 
-    std::vector<float> dry[2];
     if(EnableReverb)
     {
+        std::vector<float> dry;
+        dry.resize(count);
         // Insert input into reverb fifo
         for(unsigned w=0; w<2; ++w)
         {
-            dry[w].resize(count);
             const float a = average_flt[w];
             for(unsigned long p = 0; p < count; ++p)
             {
-                dry[w][p] = samples[p*2+w] - a;
+                dry[p] = (samples[p*2+w] - a) * ReverbScale;
             }
             // ^  Note: ftree-vectorize causes an error in this loop on g++-4.4.5
             reverb_data.chan[w].input_fifo.insert(
             reverb_data.chan[w].input_fifo.end(),
-                dry[w].begin(), dry[w].end());
+                dry.begin(), dry.end());
         }
         // Reverbify it
         for(unsigned w=0; w<2; ++w)
@@ -418,14 +418,15 @@ void SendStereoAudio(unsigned long count, float* samples)
     {
         for(unsigned long p = 0; p < count; ++p)
         {
-            for(unsigned w=0; w<2; ++w)
+            for(unsigned w = 0; w < 2; ++w)
             {
-                float out = ((1 - reverb_data.wetonly) * dry[w][p] +
+                const float dry = samples[p*2 + w] - average_flt[w];
+                const int out = ((1 - reverb_data.wetonly) * dry +
                     .5 * (reverb_data.chan[0].out[w][p]
                         + reverb_data.chan[1].out[w][p])) * SAMPLE_MULT_FACTOR;
                 AudioBuffer.push_back(
-                    out<-32768.f ? -32768 :
-                    out>32767.f ?  32767 : out);
+                    out<-32768 ? -32768 :
+                    out>32767 ?  32767 : out);
             }
         }
     } else {
@@ -433,7 +434,8 @@ void SendStereoAudio(unsigned long count, float* samples)
         {
             for(unsigned w = 0; w < 2; ++w)
             {
-                int out = (samples[p*2 + w] - average_flt[w]) * SAMPLE_MULT_FACTOR;
+                const float dry = samples[p*2 + w] - average_flt[w];
+                int out = dry * SAMPLE_MULT_FACTOR;
                 AudioBuffer.push_back(
                     out<-32768 ? -32768 :
                     out>32767 ? 32767 : out);

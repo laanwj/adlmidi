@@ -16,6 +16,7 @@ static const unsigned MaxSamplesAtTime = 512; // 512=dbopl limitation
 static const unsigned MaxWidth = 160;
 static const unsigned MaxHeight = 1 + 23*MaxCards;
 static const unsigned SAMPLE_MULT_FACTOR = 10240; // Conversion from float to 16-bit signed sample
+static const double ReverbScale = 0.1;
 
 extern unsigned AdlBank;
 extern unsigned NumFourOps;
