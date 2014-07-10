@@ -45,6 +45,8 @@ This fork adds the following:
 * Performance improvements in the SDL audio output handling. The original ADLMIDI locks the audio buffer
   for a longer than needed due to unnecessary random-indexing in std::deque. Still a work in progress.
 * Slight modularization and clean-up of the code (split ui, audio output, MIDI event processor into separate files)
+* Reverb can be disabled with a command-line flag. This is mainly useful when the intent is to
+  record and add effects later, but it will also use less CPU.
 
 This fork breaks the following:
 
@@ -65,6 +67,7 @@ Usage: adlmidi <midifilename> [ <options> ] [ <banknumber> [ <numcards> [ <numfo
  -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)
  -fp Enable full stereo panning
  -bs Allow bank switch (Bank LSB changes bank)
+ -noreverb Disable reverb
     Banks: 0 = AIL (Star Control 3, Albion, Empire 2, Sensible Soccer, Settlers 2, many others)
            1 = Bisqwit (selection of 4op and 2op)
            2 = HMI (Descent, Asterix)
