@@ -157,12 +157,12 @@ int main(int argc, char** argv)
 
     UI.Color(15); std::fflush(stderr);
     std::printf(
-        "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n"
+        "ADLSEQ: OPL3 softsynth for Linux\n"
     );
     std::fflush(stdout);
     UI.Color(3); std::fflush(stderr);
     std::printf(
-        "(C) 2011 Joel Yliluoma -- http://bisqwit.iki.fi/source/adlmidi.html\n");
+        "(C) 2014 Joel Yliluoma, Wladimir J. van der Laan\n");
     std::fflush(stdout);
     UI.Color(7); std::fflush(stderr);
 

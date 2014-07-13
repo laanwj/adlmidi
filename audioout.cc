@@ -29,6 +29,10 @@
 #include "config.hh"
 #include "ui.hh"
 
+#ifdef AUDIO_JACK
+#include <jack/jack.h>
+#endif
+
 // Comment this out to disable reverb and other postprocessing of the audio
 // #define USE_REVERB
 // Frequency of volume updates in UI
@@ -257,15 +261,28 @@ namespace WindowsAudio
   }
 }
 #else
-typedef std::deque<short> AudioBufferType;
-static SDL_AudioSpec obtained;
+#ifdef AUDIO_SDL // For SDL use shorts samples
+typedef short SampleType;
+inline SampleType sample_from_float(float in)
+{
+    const float out = in * SAMPLE_MULT_FACTOR;
+    return out<-32768 ? -32768 : (out>32767 ?  32767 : out);
+}
+#else // AUDIO_JACK use floats
+typedef float SampleType;
+inline float sample_from_float(float in) { return in * SAMPLE_MULT_OUTPUT_FLOAT; }
+#endif
+typedef std::deque<SampleType> AudioBufferType;
 static AudioBufferType AudioBuffer;
 static MutexType AudioBuffer_lock;
 static CondType AudioBuffer_cond;
 static size_t min_samples;
 static bool audio_started;
 static bool audio_underflow;
+#endif // WIN32
 
+#ifdef AUDIO_SDL
+static SDL_AudioSpec obtained;
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
     short* target = (short*) stream;
@@ -287,7 +304,37 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
     AudioBuffer_lock.Unlock();
     AudioBuffer_cond.Signal();
 }
-#endif // WIN32
+#endif // AUDIO_SDL
+
+#ifdef AUDIO_JACK
+jack_port_t *output_port[2];
+jack_client_t *client;
+// JACK audio callback
+static int JACK_AudioCallback(jack_nframes_t nframes, void *)
+{
+    float *out[2] = {(jack_default_audio_sample_t *) jack_port_get_buffer(output_port[0], nframes),
+                     (jack_default_audio_sample_t *) jack_port_get_buffer(output_port[1], nframes)};
+    AudioBuffer_lock.Lock();
+    unsigned ate = nframes * 2; // number of shorts
+    if(ate > AudioBuffer.size())
+    {
+        ate = AudioBuffer.size();
+        audio_underflow = true;
+    }
+    std::deque<float>::iterator i = AudioBuffer.begin();
+    for(unsigned a = 0; a < ate; ++a,++i)
+        out[a&1][a>>1] = *i;
+    AudioBuffer.erase(AudioBuffer.begin(), i);
+    AudioBuffer_lock.Unlock();
+    AudioBuffer_cond.Signal();
+    return 0;
+}
+static void JACK_ShutdownCallback(void *)
+{
+    UI.Cleanup();
+    exit(1);
+}
+#endif // AUDIO_JACK
 
 struct FourChars
 {
@@ -318,7 +365,7 @@ unsigned long upper_power_of_two(unsigned long v)
 
 void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
 {
-#ifndef __WIN32__
+#ifdef AUDIO_SDL
     // Set up SDL
     SDL_AudioSpec spec;
     spec.freq     = PCM_RATE;
@@ -336,6 +383,69 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
     min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
+    audio_started = false;
+#endif
+#ifdef AUDIO_JACK
+    jack_options_t options = JackNullOption;
+    jack_status_t status;
+    const char *server_name = NULL;
+    const char **ports;
+    if ((client = jack_client_open("adlmidi", options, &status, server_name)) == 0) {
+        fprintf(stderr, "jack_client_open() failed, status = 0x%2.0x\n", status);
+        if (status & JackServerFailed) {
+            fprintf(stderr, "Unable to connect to JACK server\n");
+        }
+        exit(1);
+    }
+    if (status & JackServerStarted) {
+        fprintf(stderr, "JACK server started\n");
+    }
+    if (status & JackNameNotUnique) {
+        fprintf(stderr, "unique name `%s' assigned\n", jack_get_client_name(client));
+    }
+    jack_set_process_callback(client, JACK_AudioCallback, 0);
+    jack_on_shutdown(client, JACK_ShutdownCallback, 0);
+
+    unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
+
+    fprintf(stderr, "engine sample rate: %u ", jack_rate);
+    if(jack_rate != PCM_RATE)
+        fprintf(stderr, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
+    fprintf(stderr, "\n");
+
+    // create two ports, for stereo audio
+    const char * const portnames[] = { "out_1", "out_2" };
+    for(int port=0; port<2; ++port)
+    {
+        output_port[port] = jack_port_register(client, portnames[port],
+                                         JACK_DEFAULT_AUDIO_TYPE,
+                                         JackPortIsOutput, 0);
+        if (output_port[port] == NULL) {
+            fprintf(stderr, "no more JACK ports available\n");
+            exit(1);
+        }
+    }
+
+    if (jack_activate(client)) {
+        fprintf(stderr, "JACK: cannot activate client\n");
+        exit(1);
+    }
+
+    ports = jack_get_ports(client, NULL, NULL,
+                           JackPortIsPhysical|JackPortIsInput);
+    if (ports == NULL) {
+        fprintf(stderr, "JACK: no physical playback ports\n");
+    }
+
+    for(int port=0; port<2; ++port)
+    {
+        if (jack_connect(client, jack_port_name(output_port[port]), ports[port])) {
+            fprintf(stderr, "JACK: cannot connect output ports\n");
+        }
+    }
+    jack_free(ports);
+
+    min_samples = AudioBufferLength*2 + (PCM_RATE*2) * OurHeadRoomLength;
     audio_started = false;
 #endif
 }
@@ -421,12 +531,10 @@ void SendStereoAudio(unsigned long count, float* samples)
             for(unsigned w = 0; w < 2; ++w)
             {
                 const float dry = samples[p*2 + w] - average_flt[w];
-                const int out = ((1 - reverb_data.wetonly) * dry +
+                const float wet = ((1 - reverb_data.wetonly) * dry +
                     .5 * (reverb_data.chan[0].out[w][p]
-                        + reverb_data.chan[1].out[w][p])) * SAMPLE_MULT_FACTOR;
-                AudioBuffer.push_back(
-                    out<-32768 ? -32768 :
-                    out>32767 ?  32767 : out);
+                        + reverb_data.chan[1].out[w][p]));
+                AudioBuffer.push_back(sample_from_float(wet));
             }
         }
     } else {
@@ -435,13 +543,11 @@ void SendStereoAudio(unsigned long count, float* samples)
             for(unsigned w = 0; w < 2; ++w)
             {
                 const float dry = samples[p*2 + w] - average_flt[w];
-                int out = dry * SAMPLE_MULT_FACTOR;
-                AudioBuffer.push_back(
-                    out<-32768 ? -32768 :
-                    out>32767 ? 32767 : out);
+                AudioBuffer.push_back(sample_from_float(dry));
             }
         }
     }
+#ifndef AUDIO_JACK // Disabled if JACK used: float samples
     if(WritePCMfile)
     {
         /* HACK: Cheat on DOSBox recording: Record audio separately on Windows. */
@@ -492,6 +598,7 @@ void SendStereoAudio(unsigned long count, float* samples)
         //    raise(SIGINT);
         AudioBuffer.clear(); // Clear buffer after writing
     }
+#endif
     size_t cursize = AudioBuffer.size();
 #ifndef __WIN32__
     AudioBuffer_lock.Unlock();
@@ -499,13 +606,15 @@ void SendStereoAudio(unsigned long count, float* samples)
     if(!WritePCMfile)
         WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], 2*AudioBuffer.size());
 #endif
-#ifndef __WIN32__
+#ifdef AUDIO_SDL
     /* Start SDL audio processing when we have enough samples */
     if(!WritePCMfile && !audio_started && cursize >= min_samples)
     {
         audio_started = true;
         SDL_PauseAudio(0);
     }
+#endif
+#ifndef __WIN32__
     if(audio_underflow)
     {
         audio_underflow = false;

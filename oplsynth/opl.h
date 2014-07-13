@@ -21,7 +21,7 @@ OPLEmul *JavaOPLCreate(bool stereo);
 OPLEmul *DBOPLv2Create(bool fullpan);
 OPLEmul *YMF262Create(bool fullpan);
 
-#define OPL_SAMPLE_RATE			49716.0
+#define OPL_SAMPLE_RATE			((double)PCM_RATE)
 #define CENTER_PANNING_POWER	0.70710678118	/* [RH] volume at center for EQP */
 
 #endif
