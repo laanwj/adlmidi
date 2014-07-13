@@ -19,12 +19,6 @@
 
 #include <assert.h>
 
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
 #include <signal.h>
 
 #include "adldata.hh"
@@ -57,13 +51,6 @@ static void fatal(const char *msg, ...)
     va_end(ap);
     fputc('\n', stderr);
     exit(EXIT_FAILURE);
-}
-
-/* memory allocation error handling */
-static void check_mem(void *p)
-{
-    if (!p)
-        fatal("Out of memory");
 }
 
 /* error handling for ALSA functions */
@@ -131,20 +118,8 @@ static void handle_alsa_event(MIDIeventhandler *evh, const snd_seq_event_t *ev)
     }
 }
 
-#ifdef __WIN32__
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
-{
-    extern int main(int,char**);
-    char* cmdline = GetCommandLine();
-    int argc = ParseCommandLine(cmdline, NULL);
-    char**argv = new char* [argc+1];
-    ParseCommandLine(cmdline, argv);
-#else
-#undef main
-
 int main(int argc, char** argv)
 {
-#endif
     // How long is SDL buffer, in seconds?
     // The smaller the value, the more often SDL_AudioCallBack()
     // is called.
