@@ -47,6 +47,8 @@ This fork adds the following:
 * Slight modularization and clean-up of the code (split ui, audio output, MIDI event processor into separate files)
 * Reverb can be disabled with a command-line flag. This is mainly useful when the intent is to
   record and add effects later, but it will also use less CPU.
+* JACK audio output support. Note: with JACK it is important that the `PCM_RATE` exactly matches the sampling rate of the
+  jack server. This can currently be configured in the Makefile only and not at run time.
 
 This fork breaks the following:
 
