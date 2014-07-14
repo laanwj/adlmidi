@@ -28,18 +28,25 @@
 #include "parseargs.hh"
 #include "ui.hh"
 
-volatile sig_atomic_t QuitFlag = false;
+static volatile sig_atomic_t QuitFlag = false;
+static volatile bool terminateAlsaThread = false;
+static snd_seq_t *seq;
+static int port_count;
+static snd_midi_event_t *midi_enc;
+
+const uint64_t NANOS_PER_S = 1000000000LL;
+
+// Add this number of samples to time for new midi events to make sure that
+// events arrive in the future so to preserve relative timing.
+static const int MIDI_DELAY_FRAMES = 2000;
 
 static void TidyupAndExit(int)
 {
     UI.Cleanup();
     signal(SIGINT, SIG_DFL);
     raise(SIGINT);
+    terminateAlsaThread = true;
 }
-
-static snd_seq_t *seq;
-static int port_count;
-static snd_midi_event_t *midi_enc;
 
 /* prints an error message to stderr, and dies */
 static void fatal(const char *msg, ...)
@@ -91,7 +98,169 @@ static void create_port(void)
     check_snd("create port", err);
 }
 
-static void handle_alsa_event(MIDIeventhandler *evh, const snd_seq_event_t *ev)
+class MidiEventQueue
+{
+private:
+    struct MidiEvent
+    {
+        /* timestamp in samples when this event is to be processed */
+        uint32_t timestamp;
+        /* output port (channel offset divided by 16) */
+        uint8_t port;
+        /* first byte of midi message -- if 0xF7 or 0xF0 must be accompanied by
+         * entry in sysex queue */
+        uint8_t byte;
+        /* data bytes of midi message */
+        uint8_t data[2];
+    };
+    typedef std::vector<uint8_t> MidiSysExData;
+
+    std::deque<MidiEvent> eventqueue;
+    // std::deque<MidiSysExData> sysexqueue; TODO
+    MutexType mutex;
+public:
+    MidiEventQueue();
+    ~MidiEventQueue();
+
+    void PushEvent(uint32_t timestamp, int chanofs, unsigned char byte, const unsigned char *data, unsigned length);
+    bool PeekEvent(uint32_t &nextEventTime);
+    bool ProcessEvent(MIDIeventhandler *evh);
+};
+MidiEventQueue::MidiEventQueue()
+{
+}
+MidiEventQueue::~MidiEventQueue()
+{
+}
+void MidiEventQueue::PushEvent(uint32_t timestamp, int chanofs, unsigned char byte, const unsigned char *data, unsigned length)
+{
+    MidiEvent evt;
+    evt.timestamp = timestamp;
+    evt.port = chanofs / 16;
+    evt.byte = byte;
+    // TODO handle sysex
+    if(length>0)
+        evt.data[0] = data[0];
+    if(length>1)
+        evt.data[1] = data[1];
+    //printf("Inserting event: %i %02x %02x %02x\n", (int)timestamp, evt.byte, evt.data[0], evt.data[1]);
+    mutex.Lock();
+    eventqueue.push_back(evt);
+    mutex.Unlock();
+}
+bool MidiEventQueue::PeekEvent(uint32_t &nextEventTime)
+{
+    bool rv = false;
+    mutex.Lock();
+    if(!eventqueue.empty())
+    {
+        nextEventTime = eventqueue.front().timestamp;
+        rv = true;
+    }
+    mutex.Unlock();
+    return rv;
+}
+bool MidiEventQueue::ProcessEvent(MIDIeventhandler *evh)
+{
+    bool rv = false;
+    MidiEvent evt;
+    // MidiSysExData data; TODO
+    mutex.Lock();
+    if(!eventqueue.empty())
+    {
+        evt = eventqueue.front();
+        eventqueue.pop_front();
+        rv = true;
+    }
+    mutex.Unlock();
+    if(!rv)
+        return false;
+
+    // TODO handle sysex
+    //printf("Processing event: %i port=%02x %02x %02x %02x length=%i\n", evt.timestamp, evt.port, evt.byte, evt.data[0], evt.data[1],
+    //        MidiEventLength(evt.byte));
+    evh->HandleEvent(evt.port * 16, evt.byte, evt.data, MidiEventLength(evt.byte));
+    return true;
+}
+
+uint64_t GetTimeNanos()
+{
+    struct timespec tv;
+    clock_gettime(CLOCK_MONOTONIC, &tv);
+    return tv.tv_sec * NANOS_PER_S + tv.tv_nsec;
+}
+
+class Clock
+{
+    uint64_t start_time;
+    uint32_t last_samples;
+    uint32_t last_samples_time;
+public:
+    /* Pass value 'ahead' to take audio buffer into account */
+    Clock(uint64_t ahead);
+    uint32_t NanosToSamples(uint64_t nanos);
+    uint32_t CurrentSamples();
+    /* Tell the clock what time (in samples) we're currently processing
+     * at the receiving end.
+     */
+    void Sync(uint32_t cur_samples);
+};
+
+Clock::Clock(uint64_t ahead):
+    start_time(GetTimeNanos() - ahead),
+    last_samples(0),
+    last_samples_time(0)
+{
+}
+
+uint32_t Clock::NanosToSamples(uint64_t nanos)
+{
+    return (nanos - start_time) * PCM_RATE / NANOS_PER_S;
+}
+
+uint32_t Clock::CurrentSamples()
+{
+    return NanosToSamples(GetTimeNanos());
+}
+
+void Clock::Sync(uint32_t cur_samples)
+{
+    // Need to take action if this difference becomes
+    // 1) either much larger than 0 (implying that we're getting further and further ahead of things)
+    //   -> compensate by moving startTime forward, so that we return smaller timestamps
+    // 2) smaller than 0 (implying that we're getting behind and events are inserted in the past)
+    //   -> compensate by moving startTime backward, so that we return larger timestamps
+    // printf("sync time diff=%i\n", (int)CurrentSamples() - cur_samples);
+    // (difference can fluctuate by MaxSamplesAtTime, so need to have some breathing room
+    // also need to take into account how full the buffer is?):
+#if 0
+    uint64_t (cur_samples - last_samples);
+    // minimum: if <0
+    // maximum: if >1500
+    // bring to: 750
+    last_samples = cur_samples;
+#endif
+}
+
+Clock *midiclock;
+MidiEventQueue *midiqueue;
+
+/**
+ * in second thread, add incoming MIDI events to queue with timestamp (in nanos)
+ * in main thread
+ *   - peek into queue
+ *   - get current time (in samples)
+ *   - generate samples until next event (or up to MaxSamplesAtTime)
+ *   - pop and process event
+ *   - repeat
+ * main thread must be behind realtime by a # of nanos for this to work. This is known as midiLatency in munt.
+ * timer must use monotonic time clock_gettime(CLOCK_MONOTONIC)
+ * AudioStream::estimateMIDITimestamp(nanos) called to determine at what time to insert the event into the queue
+ * -> this converts nanos to samples.
+ * Define midi event type with timestamp in samples and either embedded data or pointer to sysex (or ignore sysex for now).
+ * Use a std::deque as event queue, or a ring buffer, protected by mutex.
+ */
+static void handle_alsa_event(MidiEventQueue *evh, uint32_t timestamp, const snd_seq_event_t *ev)
 {
     // Handle SysEx as special case as it is already in raw format
     if(ev->type == SND_SEQ_EVENT_SYSEX)
@@ -99,7 +268,7 @@ static void handle_alsa_event(MIDIeventhandler *evh, const snd_seq_event_t *ev)
         if(ev->data.ext.len >= 1)
         {
             const unsigned char *data = (unsigned char*)ev->data.ext.ptr;
-            evh->HandleEvent(0, data[0], &data[1], ev->data.ext.len-1);
+            evh->PushEvent(timestamp, 0, data[0], &data[1], ev->data.ext.len-1);
         }
         return;
     }
@@ -113,9 +282,47 @@ static void handle_alsa_event(MIDIeventhandler *evh, const snd_seq_event_t *ev)
     {
         unsigned char byte = buf[ptr++];
         unsigned length = MidiEventLength(byte);
-        evh->HandleEvent(0, byte, &buf[ptr], length);
+        evh->PushEvent(timestamp, 0, byte, &buf[ptr], length);
         ptr += length;
     }
+}
+
+/* Comparison functions with 32-bit wrap-around */
+// Return max(to - from, 0)
+uint32_t SamplesDiff(uint32_t to, uint32_t from)
+{
+    uint32_t timeDiff = to - from;
+    if(timeDiff > 0x80000000) // Event is in the past!
+        return 0;
+    else
+        return timeDiff;
+}
+// Return true if to > from, false otherwise
+bool SamplesLargerThan(uint32_t to, uint32_t from) { return (from - to) > 0x80000000; }
+// Return true if to < from, false otherwise
+bool SamplesSmallerThan(uint32_t to, uint32_t from) { return (to - from) > 0x80000000; }
+
+int AlsaThread(void *)
+{
+    int err;
+    int npfds = snd_seq_poll_descriptors_count(seq, POLLIN);
+    struct pollfd *pfds = (struct pollfd *)alloca(sizeof(*pfds) * npfds);
+    while(!terminateAlsaThread)
+    {
+        snd_seq_poll_descriptors(seq, pfds, npfds, POLLIN);
+        int rv = poll(pfds, npfds, 100);
+        if(rv < 0)
+            break;
+        do {
+            snd_seq_event_t *event;
+            err = snd_seq_event_input(seq, &event);
+            if (err < 0)
+                break;
+            if (event)
+                handle_alsa_event(midiqueue, midiclock->CurrentSamples() + MIDI_DELAY_FRAMES, event);
+        } while (err > 0);
+    }
+    return 0;
 }
 
 int main(int argc, char** argv)
@@ -149,9 +356,6 @@ int main(int argc, char** argv)
     if(rv >= 0)
         return rv;
 
-    const unsigned long n_samples = MaxSamplesAtTime;
-    const double delay = n_samples / (double)PCM_RATE;
-
     // ALSA
     int err;
     init_seq();
@@ -164,33 +368,56 @@ int main(int argc, char** argv)
         printf("Waiting for data at port %d:0.",
                snd_seq_client_id(seq));
     printf("\n");
+    SDL_Thread *thread = SDL_CreateThread(AlsaThread, 0);
 
     MIDIeventhandler evh;
     evh.Reset();
 
+    midiclock = new Clock((AudioBufferLength + OurHeadRoomLength) * NANOS_PER_S);
+    midiqueue = new MidiEventQueue();
     StartAudio();
+    uint32_t cur_samples = 0;
     while( !QuitFlag )
     {
-	float buffer[MaxSamplesAtTime*2] = {};
+        float buffer[MaxSamplesAtTime*2] = {};
+        unsigned long n_samples = MaxSamplesAtTime;
+        uint32_t nextEventTime;
+        if(midiqueue->PeekEvent(nextEventTime))
+        {
+            n_samples = std::min(SamplesDiff(nextEventTime, cur_samples), MaxSamplesAtTime);
+            //printf("current time %i, next event at %i\n", (int)cur_samples, (int)nextEventTime);
+        } else {
+            //printf("current time %i, no next event\n", (int)cur_samples);
+        }
 	evh.opl.Update(buffer, n_samples);
 	SendStereoAudio(n_samples, buffer);
 
         AudioWait();
-        evh.Tick(delay);
+        evh.Tick(n_samples / (double)PCM_RATE);
 
-        do {
-            snd_seq_event_t *event;
-            err = snd_seq_event_input(seq, &event);
-            if (err < 0)
+        cur_samples += n_samples;
+        // Process events as long as they're either now or in the past
+        // printf("sync time diff=%i\n", (int)midiclock->CurrentSamples()-cur_samples);
+        while(midiqueue->PeekEvent(nextEventTime))
+        {
+            if(SamplesSmallerThan(nextEventTime, cur_samples))
+                UI.PrintLn("Warning: processing event in the past %i<%i\n", (int)nextEventTime, (int)cur_samples);
+            uint32_t timeDiff = SamplesDiff(nextEventTime, cur_samples);
+            if(timeDiff > 0)
                 break;
-            if (event)
-                handle_alsa_event(&evh, event);
-        } while (err > 0);
-
+            midiqueue->ProcessEvent(&evh);
+        }
         UI.ShowCursor();
+        midiclock->Sync(cur_samples);
     }
 
     ShutdownAudio();
+
+    // Terminate ALSA
+    terminateAlsaThread = true;
+    SDL_WaitThread(thread, NULL);
+    delete midiclock;
+    delete midiqueue;
     snd_seq_close(seq);
     UI.Cleanup();
     return 0;
