@@ -310,6 +310,7 @@ void UI::Color(int newcolor)
           SetConsoleTextAttribute(handle, newcolor);
         else
       #endif
+#if 0
         if(newcolor<16)
         {
           static const char map[8+1] = "04261537";
@@ -323,8 +324,16 @@ void UI::Color(int newcolor)
           std::fputc('m', stderr);
         }
         else
+#else // XXX 256 color only
+        if(newcolor<16)
         {
-          std::fprintf(stderr, "\33[0;38;5;%im", newcolor);
+            static const char map[16] = {0,17,2,6,1,5,3,7,24,12,10,14,9,13,11,15};
+            std::fprintf(stderr, "\33[0;38;5;%im", map[newcolor]);
+        }
+        else
+#endif
+        {
+            std::fprintf(stderr, "\33[0;38;5;%im", newcolor);
         }
         color=newcolor;
     }
