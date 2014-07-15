@@ -1,7 +1,8 @@
 adlseq
 =======
 
-A softsynth with OPL3 emulation based on [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma.
+A multitimbral softsynth with OPL3 (Yamaha YMF262) emulation based on [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma.
+This is the sound chip that was in Soundblaster Pro 2.0, as well as other retro-computing devices.
 It can currently take MIDI input from MIDI files or ALSA sequencer input.
 
 ![](doc/screenshot/adlmidi.png)
@@ -25,7 +26,7 @@ ADLMIDI features:
 
 This fork adds the following:
 
-* `adlseq`: listen on an ALSA sequencer socket and play MIDI events. This means that it can be connected
+* `adlseq`: Play MIDI events from ALSA sequencer socket. This means that it can be connected
   to other MIDI sources (like games, keyboards or sequencer programs) with `aconnect` or the interface
   of the program itself.
 * A legend showing what instrument is active on what MIDI channel
@@ -49,6 +50,8 @@ This fork adds the following:
   record and add effects later, but it will also use less CPU.
 * JACK audio output support. Note: with JACK it is important that the `PCM_RATE` exactly matches the sampling rate of the
   jack server. This can currently be configured in the Makefile only and not at run time.
+* Clients can select instruments from the whole 60+ banks (with a total of
+  almost 4500 sounds) by sending Bank LSB controller changes, if enabled with `-bs`.
 
 This fork breaks the following:
 
@@ -204,14 +207,7 @@ And it should build all the executables:
 
 Known issues
 -------------
-- Unlike in the MIDI player, in `adlseq` processing of events is quantized per 512 samples.
-This can cause audible timing (or interference) issues in some cases when one event is processed and another is
-processed ~10ms later.
-- To accomodate zdoom's OPL emulators, the OPL frequency was changed to 49716
-  instead of 48000. This is the frequency as used by the original chips,
-  but it means that resampling is necessary. Pulseaudio can do this,
-  but other SDL audio backends may not.
-- The legend display only shows 16 MIDI channels, even if more are active through device/port select commands.
+None at the moment.
 
 Copying
 --------
