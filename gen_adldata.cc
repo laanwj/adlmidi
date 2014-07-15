@@ -448,7 +448,7 @@ static void LoadBNK(const char* fn, unsigned bank, const char* prefix, bool is_f
 
         if(is_fat) tmp.data[10] ^= 1;
 
-        size_t resno = InsertIns(tmp,tmp, tmp2, std::string(1,'\377')+name, name2);
+        size_t resno = InsertIns(tmp,tmp, tmp2, std::string(1,'\376')+name, name2);
 
         if(!is_fat)
         {
@@ -557,13 +557,13 @@ static void LoadBNK2(const char* fn, unsigned bank, const char* prefix,
         if(xxP24NNN & 8)
         {
             // dual-op
-            size_t resno = InsertIns(tmp[0],tmp[1], tmp2, std::string(1,'\377')+name, name2);
+            size_t resno = InsertIns(tmp[0],tmp[1], tmp2, std::string(1,'\376')+name, name2);
             SetBank(bank, gmno, resno);
         }
         else
         {
             // single-op
-            size_t resno = InsertIns(tmp[0],tmp[0], tmp2, std::string(1,'\377')+name, name2);
+            size_t resno = InsertIns(tmp[0],tmp[0], tmp2, std::string(1,'\376')+name, name2);
             SetBank(bank, gmno, resno);
         }
     }
@@ -654,13 +654,13 @@ static void LoadDoom(const char* fn, unsigned bank, const char* prefix)
 
         if(!(ins.flags&4))
         {
-            size_t resno = InsertIns(tmp[0],tmp[0],tmp2, std::string(1,'\377')+name, name2);
+            size_t resno = InsertIns(tmp[0],tmp[0],tmp2, std::string(1,'\376')+name, name2);
             SetBank(bank, gmno, resno);
         }
         else // Double instrument
         {
             tmp2.pseudo4op = true;
-            size_t resno = InsertIns(tmp[0],tmp[1],tmp2, std::string(1,'\377')+name, name2);
+            size_t resno = InsertIns(tmp[0],tmp[1],tmp2, std::string(1,'\376')+name, name2);
             SetBank(bank, gmno, resno);
         }
 
@@ -802,7 +802,7 @@ static void LoadIBK(const char* fn, unsigned bank, const char* prefix, bool perc
         tmp2.notenum  = gmno < 128 ? 0 : 35;
         tmp2.pseudo4op = false;
 
-        size_t resno = InsertIns(tmp,tmp, tmp2, std::string(1,'\377')+name, name2);
+        size_t resno = InsertIns(tmp,tmp, tmp2, std::string(1,'\376')+name, name2);
         SetBank(bank, gmno, resno);
     }
 }
@@ -1452,6 +1452,8 @@ int main()
                 if(!names.empty()) names += "; ";
                 if((*j)[0] == '\377')
                     names += j->substr(1);
+                else if((*j)[0] == '\376')
+                    names += j->substr(1);
                 else
                     names += *j;
             }
@@ -1469,6 +1471,7 @@ int main()
     printf("const struct adlinsdata adlins[%u] =\n", (unsigned)instab.size());
     printf("{\n");
     std::vector<unsigned> adlins_flags;
+    std::vector<std::string> adlins_names;
     for(size_t b=instab.size(), c=0; c<b; ++c)
         for(std::map<ins,std::pair<size_t,std::set<std::string> > >
             ::const_iterator
@@ -1490,20 +1493,30 @@ int main()
                 info.ms_sound_kon,
                 info.ms_sound_koff);
             std::string names;
+            std::string truename;
             for(std::set<std::string>::const_iterator
                 j = i->second.second.begin();
                 j != i->second.second.end();
                 ++j)
             {
                 if(!names.empty()) names += "; ";
-                if((*j)[0] == '\377')
+                if((*j)[0] == '\377')  // GM name
                     names += j->substr(1);
-                else
+                else if((*j)[0] == '\376')  // "true" name from bank
+                {
+                    names += j->substr(1);
+                    truename = j->substr(1);
+                } else
                     names += *j;
             }
+            if(truename.empty())
+                printf(", 0");
+            else
+                printf(", \"%s\"", truename.c_str());
             printf(" }, // %u: %s\n\n", (unsigned)c, names.c_str());
             fflush(stdout);
             adlins_flags.push_back(flags);
+            adlins_names.push_back(truename);
         }
     printf("};\n\n");
 

@@ -50,6 +50,7 @@ extern const struct adlinsdata
     Uint8 flags;
     Uint16 ms_sound_kon;  // Number of milliseconds it produces sound;
     Uint16 ms_sound_koff;
+    const char *name;
 } adlins[];
 extern const unsigned short banks[][256];
 extern const char* const banknames[70];
