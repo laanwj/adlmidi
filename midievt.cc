@@ -880,43 +880,22 @@ void MIDIeventhandler::NoteOff(unsigned MidCh, int note)
     }
 }
 
-void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
+int MIDIeventhandler::GetBank(int MidCh)
 {
-    NoteOff(MidCh, note);
-    // On Note on, Keyoff the note first, just in case keyoff
-    // was omitted; this fixes Dance of sugar-plum fairy
-    // by Microsoft. Now that we've done a Keyoff,
-    // check if we still need to do a Keyon.
-    // vol=0 and event 8x are both Keyoff-only.
-    if(vol == 0) return;
-
-    unsigned midiins = Ch[MidCh].patch;
-    if(MidCh%16 == 9) midiins = 128 + note; // Percussion instrument
-    UI.IllustratePatchChange(MidCh, midiins);
-
-    /*
-    if(MidCh%16 == 9 || (midiins != 32 && midiins != 46 && midiins != 48 && midiins != 50))
-        break; // HACK
-    if(midiins == 46) vol = (vol*7)/10;          // HACK
-    if(midiins == 48 || midiins == 50) vol /= 4; // HACK
-    */
-    //if(midiins == 56) vol = vol*6/10; // HACK
-
     int bank = AdlBank;
     if(!AllowBankSwitch)
     {
         static std::set<unsigned> bank_warnings;
         if(Ch[MidCh].bank_msb)
         {
-            unsigned bankid = midiins + 256*Ch[MidCh].bank_msb;
+            unsigned bankid = 256*Ch[MidCh].bank_msb;
             std::set<unsigned>::iterator
                 i = bank_warnings.lower_bound(bankid);
             if(i == bank_warnings.end() || *i != bankid)
             {
-                UI.PrintLn("[%u]Bank %u undefined, patch=%c%u",
+                UI.PrintLn("[%u]Bank %u undefined",
                     MidCh,
-                    Ch[MidCh].bank_msb,
-                    (midiins&128)?'P':'M', midiins&127);
+                    Ch[MidCh].bank_msb);
                 bank_warnings.insert(i, bankid);
             }
         }
@@ -940,9 +919,34 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
         if(bank < 0 || bank >= (int)NumBanks)
             bank = 0;
     }
+    return bank;
+}
 
+void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
+{
+    NoteOff(MidCh, note);
+    // On Note on, Keyoff the note first, just in case keyoff
+    // was omitted; this fixes Dance of sugar-plum fairy
+    // by Microsoft. Now that we've done a Keyoff,
+    // check if we still need to do a Keyon.
+    // vol=0 and event 8x are both Keyoff-only.
+    if(vol == 0) return;
+
+    unsigned midiins = Ch[MidCh].patch;
+    if(MidCh%16 == 9) midiins = 128 + note; // Percussion instrument
+
+    /*
+    if(MidCh%16 == 9 || (midiins != 32 && midiins != 46 && midiins != 48 && midiins != 50))
+        break; // HACK
+    if(midiins == 46) vol = (vol*7)/10;          // HACK
+    if(midiins == 48 || midiins == 50) vol /= 4; // HACK
+    */
+    //if(midiins == 56) vol = vol*6/10; // HACK
+
+    int bank = GetBank(MidCh);
     int meta = banks[bank][midiins];
     int tone = note;
+    UI.IllustratePatchChange(MidCh, midiins, meta);
     if(adlins[meta].tone)
     {
         if(adlins[meta].tone < 20)
@@ -1145,8 +1149,9 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
 
 void MIDIeventhandler::PatchChange(int MidCh, int patch)
 {
+    int bank = GetBank(MidCh);
     Ch[MidCh].patch = patch;
-    UI.IllustratePatchChange(MidCh, patch);
+    UI.IllustratePatchChange(MidCh, patch, banks[bank][patch]);
 }
 
 void MIDIeventhandler::ChannelAfterTouch(int MidCh, int vol)
@@ -1250,6 +1255,6 @@ void MIDIeventhandler::SetNumChannels(int channels)
 {
     Ch.resize(channels);
     for(int ch=0; ch<channels; ++ch)
-        UI.IllustratePatchChange(ch, -1);
+        UI.IllustratePatchChange(ch, -1, -1);
 }
 

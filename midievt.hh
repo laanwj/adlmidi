@@ -162,6 +162,7 @@ private:
     void NoteUpdate_All(unsigned MidCh, unsigned props_mask);
     void UpdateVibrato(double amount);
     void UpdateArpeggio(double /*amount*/);
+    int GetBank(int MidCh);
 
     // Specific MIDI Event handlers
     void NoteOff(unsigned MidCh, int note);

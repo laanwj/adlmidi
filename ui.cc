@@ -82,7 +82,10 @@ UI::UI(): x(0), y(0), color(-1), txtline(1),
     std::fputs("Hit Ctrl-C to quit\r", stderr);
 
     for(unsigned ch=0; ch<MaxHeight; ++ch)
+    {
         curpatch[ch] = -1;
+        curins[ch] = -1;
+    }
 }
 void UI::HideCursor()
 {
@@ -220,13 +223,16 @@ void UI::IllustrateVolumes(double left, double right)
         }
 }
 
-void UI::IllustratePatchChange(int MidCh, int patch)
+void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
 {
-    if(MidCh < 0 || MidCh >= (int)WinHeight() || (patch != -1 && curpatch[MidCh] == patch))
+    if(MidCh < 0 || MidCh >= (int)WinHeight() || (patch != -1 && curpatch[MidCh] == patch && curins[MidCh] == adlinsid))
         return;
     curpatch[MidCh] = patch;
+    curins[MidCh] = adlinsid;
+    // 8 or 9 or 11
     Draw(81,MidCh+1, 8, '0' + (MidCh / 10));
     Draw(82,MidCh+1, 8, '0' + (MidCh % 10));
+    const int name_column = 92;
     if(patch == -1)
     {
         Draw(84,MidCh+1, 1, '-');
@@ -235,6 +241,8 @@ void UI::IllustratePatchChange(int MidCh, int patch)
         Draw(88,MidCh+1, 1, '-');
         Draw(89,MidCh+1, 1, '-');
         Draw(90,MidCh+1, 1, '-');
+        for(unsigned x=name_column; x<MaxWidth; ++x)
+            Draw(x,MidCh+1, 1, ' ');
     }
     else
     {
@@ -244,6 +252,16 @@ void UI::IllustratePatchChange(int MidCh, int patch)
         Draw(88,MidCh+1, 1, '[');
         Draw(89,MidCh+1, AllocateColor(patch), MIDIsymbols[patch]);
         Draw(90,MidCh+1, 1, ']');
+        std::string name;
+        if(adlinsid >= 0 && adlins[adlinsid].name)
+            name = adlins[adlinsid].name;
+        for(unsigned x=name_column; x<MaxWidth-1; ++x)
+        {
+            if((x-name_column) < name.size())
+                Draw(x,MidCh+1, 8, name[x-name_column]);
+            else
+                Draw(x,MidCh+1, 1, ' ');
+        }
     }
 }
 

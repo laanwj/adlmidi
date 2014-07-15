@@ -14,6 +14,7 @@ public:
     char slots[MaxWidth][MaxHeight];
     unsigned char slotcolors[MaxWidth][MaxHeight];
     short curpatch[MaxHeight];
+    short curins[MaxHeight];
     bool cursor_visible;
 public:
     UI();
@@ -23,7 +24,7 @@ public:
     void IllustrateNote(int adlchn, int note, int ins, int pressure, double bend);
     void Draw(int notex,int notey, int color, char ch);
     void IllustrateVolumes(double left, double right);
-    void IllustratePatchChange(int MidCh, int patch);
+    void IllustratePatchChange(int MidCh, int patch, int adlinsid);
     // Move tty cursor to the indicated position.
     // Movements will be done in relative terms
     // to the current cursor position only.
