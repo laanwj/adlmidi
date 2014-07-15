@@ -190,13 +190,31 @@ uint64_t GetTimeNanos()
     return tv.tv_sec * NANOS_PER_S + tv.tv_nsec;
 }
 
+/* Comparison functions with 32-bit wrap-around */
+// Return max(to - from, 0)
+uint32_t SamplesDiff(uint32_t to, uint32_t from)
+{
+    uint32_t timeDiff = to - from;
+    if(timeDiff > 0x80000000) // Event is in the past!
+        return 0;
+    else
+        return timeDiff;
+}
+// Return to - from
+int32_t SamplesSignedDiff(uint32_t to, uint32_t from)
+{
+    return to - from; // XXX does this use undefined behavior?
+}
+// Return true if to > from, false otherwise
+bool SamplesLargerThan(uint32_t to, uint32_t from) { return (from - to) > 0x80000000; }
+// Return true if to < from, false otherwise
+bool SamplesSmallerThan(uint32_t to, uint32_t from) { return (to - from) > 0x80000000; }
+
 class Clock
 {
     uint64_t start_time;
-    uint32_t last_samples;
-    uint32_t last_samples_time;
 public:
-    /* Pass value 'ahead' to take audio buffer into account */
+    /* Pass value 'ahead' (in nanos) to take audio buffer into account */
     Clock(uint64_t ahead);
     uint32_t NanosToSamples(uint64_t nanos);
     uint32_t CurrentSamples();
@@ -207,9 +225,7 @@ public:
 };
 
 Clock::Clock(uint64_t ahead):
-    start_time(GetTimeNanos() - ahead),
-    last_samples(0),
-    last_samples_time(0)
+    start_time(GetTimeNanos() - ahead)
 {
 }
 
@@ -223,23 +239,15 @@ uint32_t Clock::CurrentSamples()
     return NanosToSamples(GetTimeNanos());
 }
 
-void Clock::Sync(uint32_t cur_samples)
+void Clock::Sync(uint32_t out_samples)
 {
-    // Need to take action if this difference becomes
-    // 1) either much larger than 0 (implying that we're getting further and further ahead of things)
-    //   -> compensate by moving startTime forward, so that we return smaller timestamps
-    // 2) smaller than 0 (implying that we're getting behind and events are inserted in the past)
-    //   -> compensate by moving startTime backward, so that we return larger timestamps
-    // printf("sync time diff=%i\n", (int)CurrentSamples() - cur_samples);
-    // (difference can fluctuate by MaxSamplesAtTime, so need to have some breathing room
-    // also need to take into account how full the buffer is?):
-#if 0
-    uint64_t (cur_samples - last_samples);
-    // minimum: if <0
-    // maximum: if >1500
-    // bring to: 750
-    last_samples = cur_samples;
-#endif
+    uint64_t clk_samples = CurrentSamples();
+    int32_t difference = SamplesSignedDiff(clk_samples, out_samples);
+    if(abs(difference) > 1000)
+    {
+        start_time += (int64_t)difference * NANOS_PER_S / PCM_RATE;
+        UI.PrintLn("Clock sync correcting difference of %d samples", difference);
+    }
 }
 
 Clock *midiclock;
@@ -286,21 +294,6 @@ static void handle_alsa_event(MidiEventQueue *evh, uint32_t timestamp, const snd
         ptr += length;
     }
 }
-
-/* Comparison functions with 32-bit wrap-around */
-// Return max(to - from, 0)
-uint32_t SamplesDiff(uint32_t to, uint32_t from)
-{
-    uint32_t timeDiff = to - from;
-    if(timeDiff > 0x80000000) // Event is in the past!
-        return 0;
-    else
-        return timeDiff;
-}
-// Return true if to > from, false otherwise
-bool SamplesLargerThan(uint32_t to, uint32_t from) { return (from - to) > 0x80000000; }
-// Return true if to < from, false otherwise
-bool SamplesSmallerThan(uint32_t to, uint32_t from) { return (to - from) > 0x80000000; }
 
 int AlsaThread(void *)
 {
@@ -397,7 +390,6 @@ int main(int argc, char** argv)
 
         cur_samples += n_samples;
         // Process events as long as they're either now or in the past
-        // printf("sync time diff=%i\n", (int)midiclock->CurrentSamples()-cur_samples);
         while(midiqueue->PeekEvent(nextEventTime))
         {
             if(SamplesSmallerThan(nextEventTime, cur_samples))
