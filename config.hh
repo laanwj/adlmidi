@@ -12,7 +12,7 @@ OPLEMU_YMF262        // YMF262 from MAME (via VGMPlay)
 
 static const unsigned MaxCards = 100;
 static const unsigned MaxSamplesAtTime = 512; // 512=dbopl limitation
-static const unsigned MaxWidth = 160;
+static const unsigned MaxWidth = 120;
 static const unsigned MaxHeight = 1 + 23*MaxCards;
 static const unsigned SAMPLE_MULT_FACTOR = 10240; // Conversion from float to 16-bit signed sample
 static const float SAMPLE_MULT_OUTPUT_FLOAT = 0.33f; // Scaling applied to output samples
