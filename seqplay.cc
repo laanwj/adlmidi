@@ -337,7 +337,7 @@ int main(int argc, char** argv)
     std::fflush(stdout);
     UI.Color(3); std::fflush(stderr);
     std::printf(
-        "(C) 2014 Joel Yliluoma, Wladimir J. van der Laan\n");
+        "(C) -- https://github.com/laanwj/adlmidi\n");
     std::fflush(stdout);
     UI.Color(7); std::fflush(stderr);
 

@@ -408,7 +408,7 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
 
     unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
 
-    fprintf(stderr, "engine sample rate: %u ", jack_rate);
+    fprintf(stderr, "JACK engine sample rate: %u ", jack_rate);
     if(jack_rate != PCM_RATE)
         fprintf(stderr, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
     fprintf(stderr, "\n");
