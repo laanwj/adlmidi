@@ -1,16 +1,20 @@
 adlseq
 =======
 
-A multitimbral softsynth with OPL3 (Yamaha YMF262) emulation based on [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma.
-This is the sound chip that was in Soundblaster Pro 2.0, as well as other retro-computing devices.
-It can currently take MIDI input from MIDI files or ALSA sequencer input.
+`adlseq` is a a multitimbral softsynth using two or four-operator FM-synthesis. It uses OPL3
+emulation and is based on [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma. This is
+the sound chip that was in Soundblaster Pro 2.0 and is commonly used for music in 80s-90s
+video games.
+
+Different executables are provided for playing MIDI files or receiving and
+playing MIDI input from ALSA sequencer input.
 
 ![](doc/screenshot/adlmidi.png)
 
 ADLMIDI features:
 
-* OPL3 emulation with four-operator mode support
-* FM patches from a number of known PC games, copied from files typical to AIL = Miles Sound System / DMX / HMI = Human Machine Interfaces / Creative IBK.
+* OPL3 (Yamaha YMF262) emulation with four-operator mode support
+* 4500+ FM patches from a large number of PC games, copied from files typical to AIL = Miles Sound System / DMX / HMI = Human Machine Interfaces / Creative IBK.
 * Stereo sound
 * Reverb filter based on code from SoX, based on code from Freeverb. A copy of either project is not needed.
 * Number of simulated soundcards can be specified as 1-100 (maximum channels 1800!)
@@ -43,20 +47,22 @@ This fork adds the following:
 * Full stereo panning (using `-fp`). Instead of instruments popping from side to side, they can smoothly pan. Like in zdoom
   this is done with a small change to the emulators, instead of by duplicating the instrument on two channels as would be necessary
   with a real OPL3. Not yet supported for `ymf262` and `dboplv2` emulators.
-* Performance improvements in the SDL audio output handling. The original ADLMIDI locks the audio buffer
+* Performance improvements in the audio output handling. The original ADLMIDI locks the audio buffer
   for a longer than needed due to unnecessary random-indexing in std::deque. Still a work in progress.
 * Slight modularization and clean-up of the code (split ui, audio output, MIDI event processor into separate files)
 * Reverb can be disabled with a command-line flag. This is mainly useful when the intent is to
   record and add effects later, but it will also use less CPU.
 * JACK audio output support. Note: with JACK it is important that the `PCM_RATE` exactly matches the sampling rate of the
   jack server. This can currently be configured in the Makefile only and not at run time.
-* Clients can select instruments from the whole 60+ banks (with a total of
+* It is possible to select instruments from the whole 60+ banks (with a total of
   almost 4500 sounds) by sending Bank LSB controller changes, if enabled with `-bs`.
 
 This fork breaks the following:
 
-* Tetris went missing in a code move :( Ideally this should be reintegrated, or else some roguelike game.
-* Windows support (but should be easy to fix)
+* Tetris went missing in an early code move :( Ideally this should be reintegrated, or else some roguelike game.
+* Windows support (but should be easy to fix, at least for the MIDI file player)
+* Non-256 color terminal support (I think this should be an option, although only few modern terminals are not 256-color,
+especially given that Windows support is broken)
 
 Usage
 ------
@@ -185,6 +191,32 @@ numbers shown are subsequently
 2) the patch number (0..127 for normal patches, 128..255 for percussion)
 3) the symbol used to render this instrument in the grid
 
+MIDI Controllers
+-----------------
+
+`adlseq` implements the following MIDI controller events:
+
+ CC, RPN or NRPN                | Parameter
+ -------------------------------|-------------------------
+ CC 0 (Bank MSB)                | Bank MSB (currently unused)
+ CC 32 (Bank LSB)               | Bank number when started with -bs option
+ CC 1 (Vibrato MSB)             | Adjust vibrato
+ CC 5 (Portamento Time MSB)     | Portamento Time (currently unused)
+ CC 37 (Portamento Time LSB)    | Portamento Time (currently unused)
+ CC 7 (Main Volume MSB)         | Volume Coarse
+ CC 10 (Panning MSB)            | Stereo Panning (binary, unless started with -fp option)
+ CC 11 (Expression MSB)         | Expression (another volume factor)
+ CC 64 (Sustain Pedal)          | Enable/Disable Sustain
+ CC 65 (Portamento On/Off)      | Enable/Disable Portamento (currently unused)
+ CC 120 (All Sounds Off)        | Turn all sounds on channel off
+ CC 121 (Reset All Controllers) | Set all controllers to default values
+ CC 123 (All Notes Off)         | Release all notes on channel
+ CC 6,38,98,99,100,101          | Set RPNs and NRPNs
+ RPN MSB 0 LSB 0                | Pitch-bender Sensitivity
+ NRPN MSB 1 LSB 8               | Vibrato speed
+ NRPN MSB 1 LSB 9               | Vibrato depth
+ NRPN MSN 1 LSB 10              | Vibrato delay (in milliseconds)
+
 Build
 ------
 If necessary, first install the dependencies. On Ubuntu:
@@ -193,7 +225,7 @@ If necessary, first install the dependencies. On Ubuntu:
 sudo apt-get install libsdl1.2-dev libasound2-dev
 ```
 
-Then just type
+Optionally, configure `AUDIO_SDL` or `AUDIO_JACK` in the Makefile, then just type
 ```bash
 make
 ```
@@ -237,4 +269,6 @@ See also
 
 * [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) site by Joel Yliluoma 
 * [OPL synth emulation](http://zdoom.org/wiki/OPL_synth_emulation) on ZDoom wiki
-
+* [Hexter](http://dssi.sourceforge.net/hexter.html) Yamaha DX7 modeling DSSI plugin, another softsynth that uses FM modeling and emulates a Yamaha sound chip,
+  albeit a different one. For the DX7 there are also lots of sounds available. These are not interoperable with adlmidi
+* [music-synthesizer-for-android](https://code.google.com/p/music-synthesizer-for-android/) Another Yamaha DX7 emulator, this time for Android
