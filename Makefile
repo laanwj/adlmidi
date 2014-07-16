@@ -18,9 +18,13 @@ CPPFLAGS += $(SDL)
 LDLIBS+=-lasound # for alsaseq
 CPPFLAGS += -std=c++11 -pedantic -Wall -Wextra
 
-# jack
+# Jack: comment these lines out and uncomment the SDL line below to
+# use SDL audio instead
 CPPFLAGS+=-DAUDIO_JACK $$(pkg-config --cflags jack)
 LDLIBS+=$$(pkg-config --libs jack)
+
+# SDL
+#CPPFLAGS+=-DAUDIO_SDL
 
 # Official OPL sampling rate
 #CPPFLAGS += -DPCM_RATE=49716
