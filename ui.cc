@@ -252,15 +252,27 @@ void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
         Draw(88,MidCh+1, 1, '[');
         Draw(89,MidCh+1, AllocateColor(patch), MIDIsymbols[patch]);
         Draw(90,MidCh+1, 1, ']');
-        std::string name;
-        if(adlinsid >= 0 && adlins[adlinsid].name)
-            name = adlins[adlinsid].name;
+        std::string name = "[unnamed]";
+        int color = 1;
+        if(adlinsid >= 0)
+        {
+            if(adlins[adlinsid].name)
+                name = adlins[adlinsid].name;
+            /// Set color based on flags
+            if(!(adlins[adlinsid].flags & adlinsdata::Flag_NoSound))
+            {
+                if(adlins[adlinsid].adlno1 != adlins[adlinsid].adlno2)
+                    color = 11; // 4-op or pseudo-4-op
+                else
+                    color = 8;
+            }
+        }
         for(unsigned x=name_column; x<MaxWidth-1; ++x)
         {
             if((x-name_column) < name.size())
-                Draw(x,MidCh+1, 8, name[x-name_column]);
+                Draw(x,MidCh+1, color, name[x-name_column]);
             else
-                Draw(x,MidCh+1, 1, ' ');
+                Draw(x,MidCh+1, color, ' ');
         }
     }
 }
