@@ -9,7 +9,7 @@ video games.
 Different executables are provided for playing MIDI files or receiving and
 playing MIDI input from ALSA sequencer input.
 
-![](doc/screenshot/adlmidi.png)
+![Interface screenshot](doc/screenshot/adlmidi.png)
 
 ADLMIDI features:
 
@@ -184,12 +184,17 @@ number. Four-operator or pseudo-4op instruments will be active on two channels.
 
 Diagnostic messages are overlayed on this in blue text.
 
+![Legend](doc/screenshot/legend.png)
+
 The right pane shows a legend of what instrument is active on each of the 16 MIDI channels. The
 numbers shown are subsequently
 
-1) the channel number
-2) the patch number (0..127 for normal patches, 128..255 for percussion)
-3) the symbol used to render this instrument in the grid
+1. the channel number
+2. the patch number (0..127 for normal patches, 128..255 for percussion)
+3. the symbol used to render this instrument in the grid
+4. the name of the instrument (from the original bank). The color of the instrument name is
+   dark blue if the instrument is soundless, light blue if two-operator FM and bright cyan
+   if four-operator FM.
 
 MIDI Controllers
 -----------------
