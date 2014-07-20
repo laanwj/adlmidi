@@ -34,9 +34,9 @@ This fork adds the following:
   to other MIDI sources (like games, keyboards or sequencer programs) with `aconnect` or the interface
   of the program itself.
 * A legend showing what instrument is active on what MIDI channel
-* Selectable OPL3 emulator (using `-emu=...`)
-  * `dbopl`: Old DOSBOX OPL3.
-  * `dboplv2`: New DOSBOX OPL3 (default, as in ADLMIDI).
+* Selectable OPL3 emulator (using `-emu=...`). Due to different approximations of the hardware, the emulators have a slightly different FM sound.
+  * `dbopl`: Old DOSBOX OPL3, which uses some floating-point math.
+  * `dboplv2`: New DOSBOX OPL3 which is fully based on fixed-point math (default, as in ADLMIDI).
   * `vintage`: 'That vintage tone' emulator by Robson Cozendey ported to C++
     from zdoom. A detailed description and Java applet version can be found on
     http://opl3.cozendey.com/. It is very accurate, but also CPU-heavy since
