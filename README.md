@@ -274,6 +274,11 @@ See also
 
 * [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) site by Joel Yliluoma 
 * [OPL synth emulation](http://zdoom.org/wiki/OPL_synth_emulation) on ZDoom wiki
+
+Other FM synthesis
+--------------------
 * [Hexter](http://dssi.sourceforge.net/hexter.html) Yamaha DX7 modeling DSSI plugin, another softsynth that uses FM modeling and emulates a Yamaha sound chip,
   albeit a different one. For the DX7 there are also lots of sounds available. These are not interoperable with adlmidi
 * [music-synthesizer-for-android](https://code.google.com/p/music-synthesizer-for-android/) Another Yamaha DX7 emulator, this time for Android
+* [LMMS](http://lmms.sourceforge.net/) has an OPL2 emulating synthesizer plug-in (Opulenz)
+* [Juce OPL VSTi](https://github.com/bsutherland/JuceOPLVSTi) VSTi that provides OPL2 emulation
