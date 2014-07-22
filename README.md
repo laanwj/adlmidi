@@ -1,25 +1,26 @@
 adlseq
 =======
 
-`adlseq` is a a multitimbral softsynth using two or four-operator FM-synthesis. It uses OPL3
-emulation and is based on [ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma. This is
-the sound chip that was in Soundblaster Pro 2.0 and is commonly used for music in 80s-90s
-video games.
+`adlseq` is a a multitimbral softsynth that uses two or four-operator FM-synthesis to generate sounds.
 
-Different executables are provided for playing MIDI files or receiving and
-playing MIDI input from ALSA sequencer input.
+It performs emulation of the OPL3 sound chip and is based on
+[ADLMIDI](http://bisqwit.iki.fi/source/adlmidi.html) by Joel Yliluoma. This is
+the sound chip that was in Soundblaster Pro 2.0 and was commonly used for music
+in 80s-90s video games.
+
+Separate executables are provided for playing MIDI files and for receiving MIDI input from ALSA sequencer input.
 
 ![Interface screenshot](doc/screenshot/adlmidi.png)
 
-ADLMIDI features:
+Features:
 
 * OPL3 (Yamaha YMF262) emulation with four-operator mode support
-* 4500+ FM patches from a large number of PC games, copied from files typical to AIL = Miles Sound System / DMX / HMI = Human Machine Interfaces / Creative IBK.
+* 67 banks with 4500+ FM patches from a large number of PC games, copied from files typical to AIL = Miles Sound System / DMX / HMI = Human Machine Interfaces / Creative IBK.
 * Stereo sound
 * Reverb filter based on code from SoX, based on code from Freeverb. A copy of either project is not needed.
 * Number of simulated soundcards can be specified as 1-100 (maximum channels 1800!)
 * xterm-256color support
-* WIN32 console support (also tested with HXRT / MS-DOS)
+* ~~WIN32 console support (also tested with HXRT / MS-DOS)~~ (currently broken)
 * Pitch-bender with adjustable range
 * Vibrato that responds to RPN/NRPN parameters
 * Sustain enable/disable
@@ -43,7 +44,7 @@ This fork adds the following:
     this emulator uses floating point and has a more fine-grained envelope
     generator. It can produce sometimes a crystal-clear, denser kind of OPL3
     sound that, because of that, may be useful for creating other new music.
-  * `ymf262`: YMF262 from MAME (via VGMPlay).
+  * `ymf262`: YMF262 emulator from MAME (via VGMPlay).
 * Full stereo panning (using `-fp`). Instead of instruments popping from side to side, they can smoothly pan. Like in zdoom
   this is done with a small change to the emulators, instead of by duplicating the instrument on two channels as would be necessary
   with a real OPL3. Not yet supported for `ymf262` and `dboplv2` emulators.
@@ -54,13 +55,13 @@ This fork adds the following:
   record and add effects later, but it will also use less CPU.
 * JACK audio output support. Note: with JACK it is important that the `PCM_RATE` exactly matches the sampling rate of the
   jack server. This can currently be configured in the Makefile only and not at run time.
-* It is possible to select instruments from the whole 60+ banks (with a total of
-  almost 4500 sounds) by sending Bank LSB controller changes, if enabled with `-bs`.
+* It is possible to select instruments from the full selection of banks by
+  sending Bank LSB controller changes, if enabled with `-bs`.
 
 This fork breaks the following:
 
 * Tetris went missing in an early code move :( Ideally this should be reintegrated, or else some roguelike game.
-* Windows support (but should be easy to fix, at least for the MIDI file player)
+* Windows support (should be easy to fix, at least for the MIDI file player)
 * Non-256 color terminal support (I think this should be an option, although only few modern terminals are not 256-color,
 especially given that Windows support is broken)
 
@@ -154,8 +155,8 @@ Usage: adlmidi <midifilename> [ <options> ] [ <banknumber> [ <numcards> [ <numfo
      Miles four-op set requires the maximum of numcards*6.
 ```
 
-`adlseq` works the same way and currently needs a dummy file argument, then optional
-switches, then the bank,
+`adlseq`, the ALSA midi backend, works the same way and currently needs a dummy
+file argument, then optional switches, then the bank,
 
 ```bash
 adlseq dummy -fp -emu=vintage 64
@@ -166,10 +167,14 @@ It will then print on what port it is listening, for example:
 Waiting for data at port 129:0.
 ```
 
-It is not currently possible to provide port(s) to connect to on the command line.
+It is not currently possible to provide port(s) to connect to on the command line. Connections to
+other programs and devices can be made in QJackCtl or with `aconnect` on the command line.
 
 Interface
 ----------
+
+On first glance, adlmidi has a strange ASCII-based interface with characters jumping
+around like in a roguelike game.
 
 The grid on the left shows which instruments are playing on which
 OPL channels by drawing a text character. The horizontal position is
@@ -199,7 +204,8 @@ numbers shown are subsequently
 MIDI Controllers
 -----------------
 
-`adlseq` implements the following MIDI controller events:
+`adlseq` implements the following MIDI controller events. All controller
+changes take effect immediately:
 
  CC, RPN or NRPN                | Parameter
  -------------------------------|-------------------------
@@ -230,11 +236,17 @@ If necessary, first install the dependencies. On Ubuntu:
 sudo apt-get install libsdl1.2-dev libasound2-dev
 ```
 
+For JACK support
+```bash
+sudo apt-get libjack-dev
+```
+
 Optionally, configure `AUDIO_SDL` or `AUDIO_JACK` in the Makefile, then just type
 ```bash
 make
 ```
 And it should build all the executables:
+
 - `adlmidi`: MIDI player
 - `adlseq`: ALSA sequencer
 - `adltester`: Instrument tester
@@ -244,7 +256,14 @@ And it should build all the executables:
 
 Known issues
 -------------
-None at the moment.
+- The software hard to configure and build. Needs a better build system, for example cmake or autotools-based
+that auto-detects SDL, ALSA, JACK, sets the `PCM_RATE` etc.
+
+Would be nice
+--------------
+
+- Giving control over the various OPL3 parameters through Midi CCs, to customize instruments on the fly
+  for more expression.
 
 Copying
 --------
@@ -277,8 +296,22 @@ See also
 
 Other FM synthesis
 --------------------
-* [Hexter](http://dssi.sourceforge.net/hexter.html) Yamaha DX7 modeling DSSI plugin, another softsynth that uses FM modeling and emulates a Yamaha sound chip,
-  albeit a different one. For the DX7 there are also lots of sounds available. These are not interoperable with adlmidi
-* [music-synthesizer-for-android](https://code.google.com/p/music-synthesizer-for-android/) Another Yamaha DX7 emulator, this time for Android
-* [LMMS](http://lmms.sourceforge.net/) has an OPL2 emulating synthesizer plug-in (Opulenz)
-* [Juce OPL VSTi](https://github.com/bsutherland/JuceOPLVSTi) VSTi that provides OPL2 emulation
+`adlseq` is by no means the only OSS softsynth that does FM emulation. Various others are
+
+* [Hexter](http://dssi.sourceforge.net/hexter.html) Yamaha DX7 modeling DSSI
+  plugin, another softsynth that uses FM modeling and emulates a Yamaha sound
+  chip, albeit a different one. For the DX7 there are also lots of sounds
+  available. These are not interoperable with adlmidi. The DX7 supports only
+  one waveform, the sine wave, in contrast with the OPL3's eight. On the other
+  hand the DX7's FM synthesis uses six operators which is more than OPL3's four.
+
+* [music-synthesizer-for-android](https://code.google.com/p/music-synthesizer-for-android/)
+  Another Yamaha DX7 emulator, this time for Android
+
+* [LMMS](http://lmms.sourceforge.net/) has an OPL2 emulating synthesizer
+  plug-in (Opulenz). It does not come with any predefined instruments, but has a nice
+  interface for tweaking parameters.
+
+* [Juce OPL VSTi](https://github.com/bsutherland/JuceOPLVSTi) VSTi that
+  provides OPL2 emulation
+
