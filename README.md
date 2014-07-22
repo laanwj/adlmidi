@@ -57,11 +57,12 @@ This fork adds the following:
   jack server. This can currently be configured in the Makefile only and not at run time.
 * It is possible to select instruments from the full selection of banks by
   sending Bank LSB controller changes, if enabled with `-bs`.
+* CMake-based build system instead of separate makefiles.
 
 This fork breaks the following:
 
 * Tetris went missing in an early code move :( Ideally this should be reintegrated, or else some roguelike game.
-* Windows support (should be easy to fix, at least for the MIDI file player)
+* Windows support (needs to be implemented in new cmake build system)
 * Non-256 color terminal support (I think this should be an option, although only few modern terminals are not 256-color,
 especially given that Windows support is broken)
 
@@ -236,16 +237,23 @@ If necessary, first install the dependencies. On Ubuntu:
 sudo apt-get install libsdl1.2-dev libasound2-dev
 ```
 
-For JACK support
+For JACK audio support
 ```bash
 sudo apt-get libjack-dev
 ```
 
-Optionally, configure `AUDIO_SDL` or `AUDIO_JACK` in the Makefile, then just type
+Then create a build directory, configure the build settings using `cmake-gui`
+(GUI), `cmake` (command-line) or `ccmake` (text-mode configuration) and build
+using make,
+e.g.:
 ```bash
-make
+mkdir build
+cd build
+ccmake ..
+make -j3
 ```
-And it should build all the executables:
+
+And all the executables will be built:
 
 - `adlmidi`: MIDI player
 - `adlseq`: ALSA sequencer
@@ -256,8 +264,7 @@ And it should build all the executables:
 
 Known issues
 -------------
-- The software hard to configure and build. Needs a better build system, for example cmake or autotools-based
-that auto-detects SDL, ALSA, JACK, sets the `PCM_RATE` etc.
+N/A
 
 Would be nice
 --------------
