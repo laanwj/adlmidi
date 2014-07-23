@@ -262,9 +262,12 @@ void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
             if(!(adlins[adlinsid].flags & adlinsdata::Flag_NoSound))
             {
                 if(adlins[adlinsid].adlno1 != adlins[adlinsid].adlno2)
-                    color = 11; // 4-op or pseudo-4-op
+                    if(adlins[adlinsid].flags & adlinsdata::Flag_Pseudo4op)
+                        color = 9; // pseudo-4-op
+                    else
+                        color = 11; // 4-op
                 else
-                    color = 8;
+                    color = 8; // 2-op
             }
         }
         for(unsigned x=name_column; x<MaxWidth-1; ++x)
