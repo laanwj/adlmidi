@@ -35,7 +35,8 @@ This fork adds the following:
   to other MIDI sources (like games, keyboards or sequencer programs) with `aconnect` or the interface
   of the program itself.
 * A legend showing what instrument is active on what MIDI channel
-* Selectable OPL3 emulator (using `-emu=...`). Due to different approximations of the hardware, the emulators have a slightly different FM sound.
+* Selectable OPL3 emulator (using `-emu=...`). Due to different approximations of the hardware, the emulators have a slightly different FM sound. They also
+  differ in CPU usage.
   * `dbopl`: Old DOSBOX OPL3, which uses some floating-point math.
   * `dboplv2`: New DOSBOX OPL3 which is fully based on fixed-point math (default, as in ADLMIDI).
   * `vintage`: 'That vintage tone' emulator by Robson Cozendey ported to C++
@@ -58,6 +59,7 @@ This fork adds the following:
 * It is possible to select instruments from the full selection of banks by
   sending Bank LSB controller changes, if enabled with `-bs`.
 * CMake-based build system instead of separate makefiles.
+* More extensive 256-color support. Instrument colors in the visualization come from the whole set of 256 colors.
 
 This fork breaks the following:
 
@@ -197,10 +199,15 @@ numbers shown are subsequently
 
 1. the channel number
 2. the patch number (0..127 for normal patches, 128..255 for percussion)
-3. the symbol used to render this instrument in the grid
+3. the symbol used to render this instrument in the grid, this depends on the patch number as shown in the image below
+
+  ![Instruments](doc/screenshot/instruments.png)
+
 4. the name of the instrument (from the original bank). The color of the instrument name is
-   dark blue if the instrument is soundless, light blue if two-operator FM and bright cyan
-   if four-operator FM.
+    - dark blue if the instrument is soundless
+    - cyan if two-operator FM 
+    - light blue if pseudo-four operator FM (two two-operator instruments playing at the same time)
+    - and bright cyan if four-operator FM
 
 MIDI Controllers
 -----------------
@@ -264,7 +271,7 @@ And all the executables will be built:
 
 Known issues
 -------------
-N/A
+- Output level of different OPL3 emulators is different. `vintage` produces louder sound than `dboplv2`, for example
 
 Would be nice
 --------------
@@ -313,7 +320,9 @@ Other FM synthesis
   hand the DX7's FM synthesis uses six operators which is more than OPL3's four.
 
 * [music-synthesizer-for-android](https://code.google.com/p/music-synthesizer-for-android/)
-  Another Yamaha DX7 emulator, this time for Android
+  A different Yamaha DX7 emulator, mostly aimed at Android and based on a different codebase than Hexter.
+
+* [Dexed](https://github.com/asb2m10/dexed) Cross-platform FM plugin synth, based on music-synthesizer-for-android.
 
 * [LMMS](http://lmms.sourceforge.net/) has an OPL2 emulating synthesizer
   plug-in (Opulenz). It does not come with any predefined instruments, but has a nice

@@ -410,6 +410,12 @@ if __name__ == '__main__':
     # print in block format
     s = [] 
     for x in range(0, 256):
+        if x == 0:
+            s.append('Instruments:\n')
+        if x == 128:
+            s.append('\nPercussion:\n')
+        if (x%16) == 0:
+            s.append('%3i ' % (x%128))
         s.append('\x1b[0;38;5;%im%s\x1b[0m' % syms_out[x])
         if (x%16) == 15:
             s.append('\n')
