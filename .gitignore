@@ -1,9 +1,2 @@
-*.o
 .*
-adlmidi
-dumpbank
-dumpmiles
-gen_adldata
-adlseq
-adltester
 
