@@ -198,16 +198,16 @@ The right pane shows a legend of what instrument is active on each of the 16 MID
 numbers shown are subsequently
 
 1. the channel number
-2. the patch number (0..127 for normal patches, 128..255 for percussion)
+2. the patch number (0..127 for instruments, 128..255 for percussion)
 3. the symbol used to render this instrument in the grid, this depends on the patch number as shown in the image below
 
   ![Instruments](doc/screenshot/instruments.png)
 
 4. the name of the instrument (from the original bank). The color of the instrument name is
-    - dark blue if the instrument is soundless
-    - cyan if two-operator FM 
-    - light blue if pseudo-four operator FM (two two-operator instruments playing at the same time)
-    - and bright cyan if four-operator FM
+    - *dark blue* if the instrument is soundless
+    - *cyan* if two-operator FM 
+    - *light blue* if pseudo-four operator FM (two two-operator instruments playing at the same time)
+    - and *bright cyan* if four-operator FM
 
 MIDI Controllers
 -----------------
@@ -260,6 +260,16 @@ ccmake ..
 make -j3
 ```
 
+A few useful configuration options are:
+
+ Name                   | Description
+ -----------------------|-------------------------
+ `CMAKE_BUILD_TYPE`     | Build type `Debug`, `Release` or `RelWithDebInfo` (default `RelWithDebInfo`)
+ `BuildForAMD_X86_64`   | Build for AMD x86_64 system
+ `BuildForCore2_X86_64` | Build for Intel Core2 x86_64 system
+ `DefaultAudio`         | Audio driver: `sdl` or `jack`
+ `PcmRate`              | Output sampling frequency (default 48000)
+
 And all the executables will be built:
 
 - `adlmidi`: MIDI player
@@ -272,6 +282,9 @@ And all the executables will be built:
 Known issues
 -------------
 - Output level of different OPL3 emulators is different. `vintage` produces louder sound than `dboplv2`, for example
+
+- The new interface requires a 256-color terminal. Look into using libtcod for platforms that don't have the appropriate
+  terminal support (or on top of Qt/GTK, see Hexter's "Retro" patch editing mode).
 
 Would be nice
 --------------
