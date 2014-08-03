@@ -151,7 +151,7 @@ public:
                 if(std::memcmp(HeaderBuf, "MThd\0\0\0\6", 8) != 0)
                 { InvFmt:
                     std::fclose(fp);
-                    std::fprintf(stderr, "%s: Invalid format\n", filename.c_str());
+                    UI.InitMessage(12, "%s: Invalid format\n", filename.c_str());
                     return false;
                 }
                 /*size_t  Fmt =*/ ReadBEInt(HeaderBuf+8,  2);
@@ -428,16 +428,8 @@ int main(int argc, char** argv)
     // The lag between visual content and audio content equals
     // the sum of these two buffers.
 
-    UI.Color(15); std::fflush(stderr);
-    std::printf(
-        "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n"
-    );
-    std::fflush(stdout);
-    UI.Color(3); std::fflush(stderr);
-    std::printf(
-        "(C) -- https://github.com/laanwj/adlmidi\n");
-    std::fflush(stdout);
-    UI.Color(7); std::fflush(stderr);
+    UI.InitMessage(15, "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n");
+    UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -469,7 +461,6 @@ int main(int argc, char** argv)
         int nextdelay = ceil(player.Tick(
 		    n_samples / (double)PCM_RATE,
 		    1.0 / (double)PCM_RATE) * (double)PCM_RATE);
-        UI.ShowCursor();
 
         delay = nextdelay;
     }

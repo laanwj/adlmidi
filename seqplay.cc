@@ -324,22 +324,13 @@ int main(int argc, char** argv)
     // The smaller the value, the more often SDL_AudioCallBack()
     // is called.
     const double AudioBufferLength = 0.025;
-    // How much do WE buffer, in seconds? The smaller the value,
-    // the more prone to sound chopping we are.
+    // How much do WE buffer, in seconds? The smaller the value, // the more prone to sound chopping we are.
     const double OurHeadRoomLength = 0.05;
     // The lag between visual content and audio content equals
     // the sum of these two buffers.
 
-    UI.Color(15); std::fflush(stderr);
-    std::printf(
-        "ADLSEQ: OPL3 softsynth for Linux\n"
-    );
-    std::fflush(stdout);
-    UI.Color(3); std::fflush(stderr);
-    std::printf(
-        "(C) -- https://github.com/laanwj/adlmidi\n");
-    std::fflush(stdout);
-    UI.Color(7); std::fflush(stderr);
+    UI.InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
+    UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -356,11 +347,11 @@ int main(int argc, char** argv)
     err = snd_seq_nonblock(seq, 1);
     check_snd("set nonblock mode", err);
     if (port_count > 0)
-        printf("Waiting for data.");
+        UI.InitMessage(-1, "Waiting for data.");
     else
-        printf("Waiting for data at port %d:0.",
+        UI.InitMessage(-1, "Waiting for data at port %d:0.",
                snd_seq_client_id(seq));
-    printf("\n");
+    UI.InitMessage(-1, "\n");
     SDL_Thread *thread = SDL_CreateThread(AlsaThread, 0);
 
     MIDIeventhandler evh;
@@ -399,7 +390,6 @@ int main(int argc, char** argv)
                 break;
             midiqueue->ProcessEvent(&evh);
         }
-        UI.ShowCursor();
         midiclock->Sync(cur_samples);
     }
 

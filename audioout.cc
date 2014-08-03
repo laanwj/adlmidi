@@ -288,7 +288,7 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
     short* target = (short*) stream;
     AudioBuffer_lock.Lock();
     /*if(len != AudioBuffer.size())
-        fprintf(stderr, "len=%d stereo samples, AudioBuffer has %u stereo samples",
+        UI.InitMessage(-1, "len=%d stereo samples, AudioBuffer has %u stereo samples",
             len/4, (unsigned) AudioBuffer.size()/2);*/
     unsigned ate = len/2; // number of shorts
     if(ate > AudioBuffer.size())
@@ -300,7 +300,7 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
     for(unsigned a = 0; a < ate; ++a,++i)
         target[a] = *i;
     AudioBuffer.erase(AudioBuffer.begin(), i);
-    //fprintf(stderr, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
+    //UI.InitMessage(-1, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
     AudioBuffer_lock.Unlock();
     AudioBuffer_cond.Signal();
 }
@@ -375,11 +375,11 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
     spec.callback = SDL_AudioCallback;
     if(SDL_OpenAudio(&spec, &obtained) < 0)
     {
-        std::fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
+        std::UI.InitMessage(-1, "Couldn't open audio: %s\n", SDL_GetError());
         //return 1;
     }
     if(spec.samples != obtained.samples)
-        std::fprintf(stderr, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
+        std::UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
     min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
@@ -391,27 +391,27 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
     const char *server_name = NULL;
     const char **ports;
     if ((client = jack_client_open("adlmidi", options, &status, server_name)) == 0) {
-        fprintf(stderr, "jack_client_open() failed, status = 0x%2.0x\n", status);
+        UI.InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
         if (status & JackServerFailed) {
-            fprintf(stderr, "Unable to connect to JACK server\n");
+            UI.InitMessage(-1, "Unable to connect to JACK server\n");
         }
         exit(1);
     }
     if (status & JackServerStarted) {
-        fprintf(stderr, "JACK server started\n");
+        UI.InitMessage(-1, "JACK server started\n");
     }
     if (status & JackNameNotUnique) {
-        fprintf(stderr, "unique name `%s' assigned\n", jack_get_client_name(client));
+        UI.InitMessage(-1, "unique name `%s' assigned\n", jack_get_client_name(client));
     }
     jack_set_process_callback(client, JACK_AudioCallback, 0);
     jack_on_shutdown(client, JACK_ShutdownCallback, 0);
 
     unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
 
-    fprintf(stderr, "JACK engine sample rate: %u ", jack_rate);
+    UI.InitMessage(-1, "JACK engine sample rate: %u ", jack_rate);
     if(jack_rate != PCM_RATE)
-        fprintf(stderr, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
-    fprintf(stderr, "\n");
+        UI.InitMessage(-1, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
+    UI.InitMessage(-1, "\n");
 
     // create two ports, for stereo audio
     const char * const portnames[] = { "out_1", "out_2" };
@@ -421,26 +421,26 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
                                          JACK_DEFAULT_AUDIO_TYPE,
                                          JackPortIsOutput, 0);
         if (output_port[port] == NULL) {
-            fprintf(stderr, "no more JACK ports available\n");
+            UI.InitMessage(-1, "no more JACK ports available\n");
             exit(1);
         }
     }
 
     if (jack_activate(client)) {
-        fprintf(stderr, "JACK: cannot activate client\n");
+        UI.InitMessage(-1, "JACK: cannot activate client\n");
         exit(1);
     }
 
     ports = jack_get_ports(client, NULL, NULL,
                            JackPortIsPhysical|JackPortIsInput);
     if (ports == NULL) {
-        fprintf(stderr, "JACK: no physical playback ports\n");
+        UI.InitMessage(-1, "JACK: no physical playback ports\n");
     }
 
     for(int port=0; port<2; ++port)
     {
         if (jack_connect(client, jack_port_name(output_port[port]), ports[port])) {
-            fprintf(stderr, "JACK: cannot connect output ports\n");
+            UI.InitMessage(-1, "JACK: cannot connect output ports\n");
         }
     }
     jack_free(ports);

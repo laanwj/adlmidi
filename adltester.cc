@@ -177,12 +177,10 @@ public:
         const unsigned NumBanks = sizeof(banknames)/sizeof(*banknames);
         ins_idx = (ins_idx + adl_ins_list.size() + offset) % adl_ins_list.size();
 
-        UI.Color(15); std::fflush(stderr);
         std::printf("SELECTED G%c%d\t%s\n",
             cur_gm<128?'M':'P', cur_gm<128?cur_gm+1:cur_gm-128,
             "<-> select GM, ^v select ins, qwe play note");
         std::fflush(stdout);
-        UI.Color(7); std::fflush(stderr);
         for(unsigned a=0; a<adl_ins_list.size(); ++a)
         {
             unsigned i = adl_ins_list[a];
@@ -269,16 +267,8 @@ int main(int argc, char** argv)
     // The lag between visual content and audio content equals
     // the sum of these two buffers.
 
-    UI.Color(15); std::fflush(stderr);
-    std::printf(
-        "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n"
-    );
-    std::fflush(stdout);
-    UI.Color(3); std::fflush(stderr);
-    std::printf(
-        "(C) 2011 Joel Yliluoma -- http://bisqwit.iki.fi/source/adlmidi.html\n");
-    std::fflush(stdout);
-    UI.Color(7); std::fflush(stderr);
+    UI.InitMessage(15, "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n");
+    UI.InitMessage(3, "(C) 2011 Joel Yliluoma -- http://bisqwit.iki.fi/source/adlmidi.html\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -313,7 +303,6 @@ int main(int argc, char** argv)
         AudioWait();
 
         double nextdelay = InstrumentTester.Tick(eat_delay, mindelay);
-        UI.ShowCursor();
 
         delay = nextdelay;
     }

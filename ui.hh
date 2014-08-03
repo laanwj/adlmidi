@@ -3,34 +3,44 @@
 
 #include "config.hh"
 
-class UI
+/* Console backend */
+class ConsoleInterface
 {
 public:
-  #ifdef __WIN32__
-    void* handle;
-  #endif
-    int x, y, color, txtline, maxy;
+    virtual ~ConsoleInterface();
+    /* Print status message (use only before calling Draw) */
+    virtual void InitMessage(int color, const char *message, int nchars) = 0;
+    /* Draw an arbitrary character in an arbitrary position */
+    virtual void Draw(int notex, int notey, int color, char ch) = 0;
+    /* Flush output after draws */
+    virtual void Flush() = 0;
+};
+
+class UI
+{
+private:
+    ConsoleInterface *console;
+public:
+    int txtline;
     char background[MaxWidth][MaxHeight];
-    char slots[MaxWidth][MaxHeight];
-    unsigned char slotcolors[MaxWidth][MaxHeight];
+    char foreground[MaxWidth][MaxHeight];
     short curpatch[MaxHeight];
     short curins[MaxHeight];
-    bool cursor_visible;
 public:
     UI();
+    ~UI();
     void HideCursor();
     void ShowCursor();
     void PrintLn(const char* fmt, ...) __attribute__((format(printf,2,3)));
+    void InitMessage(int color, const char *fmt, ...) __attribute__((format(printf,3,4)));
+    void InitDone();
     void IllustrateNote(int adlchn, int note, int ins, int pressure, double bend);
-    void Draw(int notex,int notey, int color, char ch);
     void IllustrateVolumes(double left, double right);
     void IllustratePatchChange(int MidCh, int patch, int adlinsid);
     // Move tty cursor to the indicated position.
     // Movements will be done in relative terms
     // to the current cursor position only.
     void GotoXY(int newx, int newy);
-    // Set color (4-bit). Bits: 1=blue, 2=green, 4=red, 8=+intensity
-    void Color(int newcolor);
     // Choose a permanent color for given instrument
     int AllocateColor(int ins);
     // Cleanup before exit

@@ -272,7 +272,7 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
 	default: abort();
     }
-    fprintf(stdout, "OPL emulation used: %s (fullpan %s)\n", emuname, fullpan?"on":"off");
+    UI.InitMessage(-1, "OPL emulation used: %s (fullpan %s)\n", emuname, fullpan?"on":"off");
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
@@ -315,7 +315,7 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
                                        + AdlPercussionMode*0x20) );
         unsigned fours_this_card = std::min(fours, 6u);
         Poke(card, 0x104, (1 << fours_this_card) - 1);
-        //fprintf(stderr, "Card %u: %u four-ops.\n", card, fours_this_card);
+        //UI.InitMessage(-1, "Card %u: %u four-ops.\n", card, fours_this_card);
         fours -= fours_this_card;
     }
 
@@ -342,13 +342,12 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
     }
 
     /**/
-    fprintf(stdout, "Channels used as:\n");
+    UI.InitMessage(-1, "Channels used as:\n");
     for(size_t a=0; a<four_op_category.size(); ++a)
     {
-        fprintf(stdout, " %d", four_op_category[a]);
-        if(a%23 == 22) fprintf(stdout, "\n");
+        UI.InitMessage(-1, " %d", four_op_category[a]);
+        if(a%23 == 22) UI.InitMessage(-1, "\n");
     }
-    fflush(stdout);
     /**/
     /*
     In two-op mode, channels 0..8 go as follows:
@@ -837,7 +836,7 @@ void MIDIeventhandler::UpdateArpeggio(double /*amount*/) // amount = amount of t
         /*if(true)
         {
             UI.GotoXY(64,c+1); UI.Color(2);
-            std::fprintf(stderr, "%7ld/%7ld,%3u\r",
+            UI.InitMessage(-1, "%7ld/%7ld,%3u\r",
                 ch[c].keyoff,
                 (unsigned) n_users);
             UI.x = 0;

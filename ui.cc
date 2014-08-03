@@ -56,66 +56,150 @@ static const char MIDIsymbols[256+1] =
 
 #include "midi_symbols_256.hh"
 
-UI::UI(): x(0), y(0), color(-1), txtline(1),
-      maxy(0), cursor_visible(true)
+class UnixTerminalConsoleInterface: public ConsoleInterface
 {
-  #ifdef __WIN32__
-    handle = GetStdHandle(STD_OUTPUT_HANDLE);
-    GotoXY(41,13);
-    CONSOLE_SCREEN_BUFFER_INFO tmp;
-    GetConsoleScreenBufferInfo(handle,&tmp);
-    if(tmp.dwCursorPosition.X != 41)
+public:
+    UnixTerminalConsoleInterface():
+      x(0), y(0), color(-1),
+      maxy(0), cursor_visible(true),
+      screen_mode(false)
     {
-        // Console is not obeying controls! Probably cygwin xterm.
-        handle = 0;
+        std::memset(slots, '.',      sizeof(slots));
     }
-    else
-    {
-        //COORD size = { 80, 23*NumCards+5 };
-        //SetConsoleScreenBufferSize(handle,size);
-    }
-  #endif
-    std::memset(slots, '.',      sizeof(slots));
-    std::memset(background, '.', sizeof(background));
-    std::fputc('\r', stderr); // Ensure cursor is at x=0
-    GotoXY(0,0); Color(15);
-    std::fputs("Hit Ctrl-C to quit\r", stderr);
 
+    ~UnixTerminalConsoleInterface()
+    {
+        ShowCursor();
+        std::fputs("\33[0m", stderr);
+        std::fflush(stderr);
+    }
+
+    void HideCursor()
+    {
+        if(!cursor_visible) return;
+        cursor_visible = false;
+        std::fputs("\33[?25l", stderr); // hide cursor
+    }
+
+    void ShowCursor()
+    {
+        if(cursor_visible) return;
+        cursor_visible = true;
+        GotoXY(0,maxy); Color(7);
+        std::fputs("\33[?25h", stderr); // show cursor
+        std::fflush(stderr);
+    }
+
+    void InitMessage(int color, const char *message, int nchars)
+    {
+        if(screen_mode)
+            return;
+        if(color != -1)
+            Color(color);
+        std::fwrite(message, nchars, 1, stderr);
+        std::fputs("\33[0m", stderr);
+        std::fflush(stderr);
+    }
+
+    void InitScreen()
+    {
+        screen_mode = true;
+
+        std::fputc('\r', stderr); // Ensure cursor is at x=0
+        GotoXY(0,0); Color(15);
+        std::fputs("Hit Ctrl-C to quit\r", stderr);
+        HideCursor();
+    }
+
+    void Draw(int notex,int notey, int color, char ch)
+    {
+        if(!screen_mode)
+            InitScreen();
+        if(slots[notex][notey] != ch
+        || slotcolors[notex][notey] != color)
+        {
+            slots[notex][notey] = ch;
+            slotcolors[notex][notey] = color;
+            GotoXY(notex, notey);
+            Color(color);
+            std::fputc(ch, stderr);
+            ++x;
+        }
+    }
+
+    void Flush()
+    {
+        std::fflush(stderr);
+    }
+
+    // Move tty cursor to the indicated position.
+    // Movements will be done in relative terms
+    // to the current cursor position only.
+    void GotoXY(int newx, int newy)
+    {
+        if(newy > maxy || (newy > y && (newy-y)<4 && newx == 0))
+        {
+            while(newy > y)
+            {
+                std::fputc('\n', stderr); y+=1; x=0;
+            }
+        }
+        if(newy > maxy)
+            maxy = newy;
+        if(newy < y) { std::fprintf(stderr, "\33[%dA", y-newy); y = newy; }
+        if(newy > y) { std::fprintf(stderr, "\33[%dB", newy-y); y = newy; }
+        if(newx != x)
+        {
+            if(newx == 0 || (newx<10 && std::abs(newx-x)>=10))
+                { std::fputc('\r', stderr); x = 0; }
+            if(newx < x) std::fprintf(stderr, "\33[%dD", x-newx);
+            if(newx > x) std::fprintf(stderr, "\33[%dC", newx-x);
+            x = newx;
+        }
+    }
+
+    // Set color (4-bit or 8-bit). Bits: 1=blue, 2=green, 4=red, 8=+intensity
+    void Color(int newcolor)
+    {
+        if(color != newcolor)
+        {
+            if(newcolor<16)
+            {
+                static const char map[16] = {0,17,2,6,1,5,3,7,24,12,10,14,9,13,11,15};
+                std::fprintf(stderr, "\33[0;38;5;%im", map[newcolor]);
+            }
+            else
+            {
+                std::fprintf(stderr, "\33[0;38;5;%im", newcolor);
+            }
+            color = newcolor;
+        }
+    }
+private:
+    int x, y, color, maxy;
+    char slots[MaxWidth][MaxHeight];
+    unsigned char slotcolors[MaxWidth][MaxHeight];
+    bool cursor_visible;
+    bool screen_mode;
+};
+
+ConsoleInterface::~ConsoleInterface() {}
+
+UI::UI():
+    txtline(1)
+{
+    std::memset(background, '.', sizeof(background));
+    std::memset(foreground, '.', sizeof(foreground));
+    console = new UnixTerminalConsoleInterface();
     for(unsigned ch=0; ch<MaxHeight; ++ch)
     {
         curpatch[ch] = -1;
         curins[ch] = -1;
     }
 }
-void UI::HideCursor()
+UI::~UI()
 {
-    if(!cursor_visible) return;
-    cursor_visible = false;
-  #ifdef __WIN32__
-    if(handle)
-    {
-      const CONSOLE_CURSOR_INFO info = {100,false};
-      SetConsoleCursorInfo(handle,&info);
-      return;
-    }
-  #endif
-    std::fputs("\33[?25l", stderr); // hide cursor
-}
-void UI::ShowCursor()
-{
-    if(cursor_visible) return;
-    cursor_visible = true;
-    GotoXY(0,maxy); Color(7);
-  #ifdef __WIN32__
-    if(handle)
-    {
-      const CONSOLE_CURSOR_INFO info = {100,true};
-      SetConsoleCursorInfo(handle,&info);
-      return;
-    }
-  #endif
-    std::fputs("\33[?25h", stderr); // show cursor
-    std::fflush(stderr);
+    delete console;
 }
 void UI::PrintLn(const char* fmt, ...)
 {
@@ -132,32 +216,41 @@ void UI::PrintLn(const char* fmt, ...)
     if(nchars == 0) return;
 
     const int beginx = 2;
-
-    HideCursor();
-    GotoXY(beginx,txtline);
+    int x;
     for(x=beginx; x-beginx<nchars && x < 80; ++x)
     {
         if(Line[x-beginx] == '\n') break;
-        Color(Line[x-beginx] == '.' ? 1 : 8);
-        std::fputc( background[x][txtline] = Line[x-beginx], stderr);
+        console->Draw(x, txtline, Line[x-beginx] == '.' ? 1 : 8, background[x][txtline] = Line[x-beginx]);
     }
     for(int tx=x; tx<80; ++tx)
     {
-        if(background[tx][txtline]!='.' && slots[tx][txtline]=='.')
+        if(background[tx][txtline]!='.' && foreground[tx][txtline]=='.')
         {
-            GotoXY(tx,txtline);
-            Color(1);
-            std::fputc(background[tx][txtline] = '.', stderr);
+            console->Draw(tx, txtline, 1, background[tx][txtline] = '.');
             ++x;
         }
     }
-    std::fflush(stderr);
 
     txtline=(1 + txtline) % WinHeight();
 }
+
+void UI::InitMessage(int color, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    char Line[512];
+  #ifndef __CYGWIN__
+    int nchars = vsnprintf(Line, sizeof(Line), fmt, ap);
+  #else
+    int nchars = std::vsprintf(Line, fmt, ap); /* SECURITY: POSSIBLE BUFFER OVERFLOW */
+  #endif
+    va_end(ap);
+
+    console->InitMessage(color, Line, nchars);
+}
+
 void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend)
 {
-    HideCursor();
     // If not in percussion mode the lower 5 channels are not use, so use 18 lines per chip instead of 23
     if(!AdlPercussionMode)
         adlchn = (adlchn / 23) * 18 + (adlchn % 23);
@@ -174,32 +267,13 @@ void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend
     {
         illustrate_char = '%';
     }
-    Draw(notex,notey,
+    console->Draw(notex,notey,
         pressure?AllocateColor(ins):
         (illustrate_char=='.'?1:
          illustrate_char=='&'?1: 8),
         illustrate_char);
-}
-
-void UI::Draw(int notex,int notey, int color, char ch)
-{
-    if(slots[notex][notey] != ch
-    || slotcolors[notex][notey] != color)
-    {
-        slots[notex][notey] = ch;
-        slotcolors[notex][notey] = color;
-        GotoXY(notex, notey);
-        Color(color);
-    #ifdef __WIN32__
-        if(handle) WriteConsole(handle,&ch,1, 0,0);
-        else
-    #endif
-        {
-          std::fputc(ch, stderr);
-          std::fflush(stderr);
-        }
-        ++x;
-    }
+    console->Flush();
+    foreground[notex][notey] = illustrate_char;
 }
 
 void UI::IllustrateVolumes(double left, double right)
@@ -214,13 +288,14 @@ void UI::IllustrateVolumes(double left, double right)
         for(unsigned w=0; w<2; ++w)
         {
             char c = amp[w] > (maxy-1)-y ? '|' : background[w][y+1];
-            Draw(w,y+1,
+            console->Draw(w,y+1,
                  c=='|' ? y<white_threshold ? 15
                         : y<red_threshold ? 12
                         : y<yellow_threshold ? 14
                         : 10 : (c=='.' ? 1 : 8),
                  c);
         }
+    console->Flush();
 }
 
 void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
@@ -230,28 +305,28 @@ void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
     curpatch[MidCh] = patch;
     curins[MidCh] = adlinsid;
     // 8 or 9 or 11
-    Draw(81,MidCh+1, 8, '0' + (MidCh / 10));
-    Draw(82,MidCh+1, 8, '0' + (MidCh % 10));
+    console->Draw(81,MidCh+1, 8, '0' + (MidCh / 10));
+    console->Draw(82,MidCh+1, 8, '0' + (MidCh % 10));
     const int name_column = 92;
     if(patch == -1)
     {
-        Draw(84,MidCh+1, 1, '-');
-        Draw(85,MidCh+1, 1, '-');
-        Draw(86,MidCh+1, 1, '-');
-        Draw(88,MidCh+1, 1, '-');
-        Draw(89,MidCh+1, 1, '-');
-        Draw(90,MidCh+1, 1, '-');
+        console->Draw(84,MidCh+1, 1, '-');
+        console->Draw(85,MidCh+1, 1, '-');
+        console->Draw(86,MidCh+1, 1, '-');
+        console->Draw(88,MidCh+1, 1, '-');
+        console->Draw(89,MidCh+1, 1, '-');
+        console->Draw(90,MidCh+1, 1, '-');
         for(unsigned x=name_column; x<MaxWidth; ++x)
-            Draw(x,MidCh+1, 1, ' ');
+            console->Draw(x,MidCh+1, 1, ' ');
     }
     else
     {
-        Draw(84,MidCh+1, 8, '0' + ((patch/100) % 10));
-        Draw(85,MidCh+1, 8, '0' + ((patch/10) % 10));
-        Draw(86,MidCh+1, 8, '0' + ((patch) % 10));
-        Draw(88,MidCh+1, 1, '[');
-        Draw(89,MidCh+1, AllocateColor(patch), MIDIsymbols[patch]);
-        Draw(90,MidCh+1, 1, ']');
+        console->Draw(84,MidCh+1, 8, '0' + ((patch/100) % 10));
+        console->Draw(85,MidCh+1, 8, '0' + ((patch/10) % 10));
+        console->Draw(86,MidCh+1, 8, '0' + ((patch) % 10));
+        console->Draw(88,MidCh+1, 1, '[');
+        console->Draw(89,MidCh+1, AllocateColor(patch), MIDIsymbols[patch]);
+        console->Draw(90,MidCh+1, 1, ']');
         std::string name = "[unnamed]";
         int color = 1;
         if(adlinsid >= 0)
@@ -273,86 +348,14 @@ void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
         for(unsigned x=name_column; x<MaxWidth-1; ++x)
         {
             if((x-name_column) < name.size())
-                Draw(x,MidCh+1, color, name[x-name_column]);
+                console->Draw(x,MidCh+1, color, name[x-name_column]);
             else
-                Draw(x,MidCh+1, color, ' ');
+                console->Draw(x,MidCh+1, color, ' ');
         }
     }
+    console->Flush();
 }
 
-// Move tty cursor to the indicated position.
-// Movements will be done in relative terms
-// to the current cursor position only.
-void UI::GotoXY(int newx, int newy)
-{
-    if(newy > maxy || (newy > y && (newy-y)<4 && newx == 0))
-    {
-        while(newy > y)
-        {
-            std::fputc('\n', stderr); y+=1; x=0;
-        }
-    }
-    if(newy > maxy)
-        maxy = newy;
-  #ifdef __WIN32__
-    if(handle)
-    {
-      CONSOLE_SCREEN_BUFFER_INFO tmp;
-      GetConsoleScreenBufferInfo(handle, &tmp);
-      COORD tmp2 = { x = newx, tmp.dwCursorPosition.Y } ;
-      if(newy < y) { tmp2.Y -= (y-newy); y = newy; }
-      SetConsoleCursorPosition(handle, tmp2);
-    }
-  #endif
-    if(newy < y) { std::fprintf(stderr, "\33[%dA", y-newy); y = newy; }
-    if(newy > y) { std::fprintf(stderr, "\33[%dB", newy-y); y = newy; }
-    if(newx != x)
-    {
-        if(newx == 0 || (newx<10 && std::abs(newx-x)>=10))
-            { std::fputc('\r', stderr); x = 0; }
-        if(newx < x) std::fprintf(stderr, "\33[%dD", x-newx);
-        if(newx > x) std::fprintf(stderr, "\33[%dC", newx-x);
-        x = newx;
-    }
-}
-// Set color (4-bit). Bits: 1=blue, 2=green, 4=red, 8=+intensity
-void UI::Color(int newcolor)
-{
-    if(color != newcolor)
-    {
-      #ifdef __WIN32__
-        if(handle)
-          SetConsoleTextAttribute(handle, newcolor);
-        else
-      #endif
-#if 0
-        if(newcolor<16)
-        {
-          static const char map[8+1] = "04261537";
-          std::fprintf(stderr, "\33[0;%s3%c",
-              (newcolor&8) ? "1;" : "", map[newcolor&7]);
-          // If xterm-256color is used, try using improved colors:
-          //        Translate 8 (dark gray) into #003366 (bluish dark cyan)
-          //        Translate 1 (dark blue) into #000033 (darker blue)
-          if(newcolor==8) fputs(";38;5;24;25", stderr);
-          if(newcolor==1) fputs(";38;5;17;25", stderr);
-          std::fputc('m', stderr);
-        }
-        else
-#else // XXX 256 color only
-        if(newcolor<16)
-        {
-            static const char map[16] = {0,17,2,6,1,5,3,7,24,12,10,14,9,13,11,15};
-            std::fprintf(stderr, "\33[0;38;5;%im", map[newcolor]);
-        }
-        else
-#endif
-        {
-            std::fprintf(stderr, "\33[0;38;5;%im", newcolor);
-        }
-        color=newcolor;
-    }
-}
 // Choose a permanent color for given instrument
 int UI::AllocateColor(int ins)
 {
@@ -376,13 +379,8 @@ int UI::AllocateColor(int ins)
 
 void UI::Cleanup()
 {
-    ShowCursor();
-#ifdef __WIN32__
-    Color(7);
-#else
-    std::fputs("\33[0m", stderr);
-#endif
-    std::fflush(stderr);
+    delete console;
+    console = 0;
 }
 
 class UI UI;
