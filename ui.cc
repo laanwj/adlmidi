@@ -179,6 +179,8 @@ private:
 
 ConsoleInterface::~ConsoleInterface() {}
 
+extern ConsoleInterface *CreateQtConsole();
+
 UI::UI():
     width(0), height(0),
     txtline(1)
@@ -186,6 +188,7 @@ UI::UI():
     std::memset(background, '.', sizeof(background));
     std::memset(foreground, '.', sizeof(foreground));
     console = new UnixTerminalConsoleInterface();
+    //console = CreateQtConsole();
     for(unsigned ch=0; ch<MaxHeight; ++ch)
     {
         curpatch[ch] = -1;

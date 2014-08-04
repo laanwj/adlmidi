@@ -57,6 +57,21 @@ endif (JACK_FOUND)
 include_directories(${JACK_INCLUDE_DIRS})
 set(AUDIO_LIBS ${AUDIO_LIBS} ${JACK_LIBRARIES})
 
+# Qt
+# Find includes in corresponding build directories
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# Instruct CMake to run moc automatically when needed.
+set(CMAKE_AUTOMOC ON)
+find_package(Qt5Widgets)
+if (Qt5Widgets_FOUND)
+    message(STATUS "Found Qt5Widgets ${Qt5Widgets_VERSION_STRING}")
+
+    set(QT_ENABLED 1)
+    add_definitions(${Qt5Widgets_DEFINITIONS})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+    set(QT_LIBS Qt5::Widgets)
+endif (Qt5Widgets_FOUND)
+
 # Set definitions for audio backend
 if (${DefaultAudio} STREQUAL "jack")
     message(STATUS "Audio driver is Jack")
@@ -108,15 +123,21 @@ add_library(oplsynth STATIC
     oplsynth/dosbox_dbopl.cpp
     oplsynth/ymf262.cpp
 )
+
+if (QT_ENABLED)
+    set(adlmidi_QT qtconsole.cc)
+endif (QT_ENABLED)
+
 add_library(adlmidi_shared STATIC
     adldata.cc
     midievt.cc
     ui.cc
     audioout.cc
     parseargs.cc
+    ${adlmidi_QT}
     ${adlmidi_HEADERS}
 )
-target_link_libraries(adlmidi_shared oplsynth ${AUDIO_LIBS})
+target_link_libraries(adlmidi_shared oplsynth ${AUDIO_LIBS} ${QT_LIBS})
 
 add_executable(adlmidi midiplay.cc)
 target_link_libraries(adlmidi adlmidi_shared) 
