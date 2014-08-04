@@ -354,12 +354,15 @@ int main(int argc, char** argv)
     UI.InitMessage(-1, "\n");
     SDL_Thread *thread = SDL_CreateThread(AlsaThread, 0);
 
+    StartAudio();
+
+    UI.StartGrid();
+
     MIDIeventhandler evh;
     evh.Reset();
 
     midiclock = new Clock((AudioBufferLength + OurHeadRoomLength) * NANOS_PER_S);
     midiqueue = new MidiEventQueue();
-    StartAudio();
     uint32_t cur_samples = 0;
     while( !QuitFlag )
     {

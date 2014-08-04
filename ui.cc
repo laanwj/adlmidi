@@ -26,14 +26,6 @@
 #include <signal.h>
 
 #include "ui.hh"
-
-static unsigned WinHeight()
-{
-    if(AdlPercussionMode)
-        return std::min(2u, NumCards) * 23;
-    return std::min(3u, NumCards) * 18;
-}
-
 #include "adldata.hh"
 
 static const char MIDIsymbols[256+1] =
@@ -74,22 +66,6 @@ public:
         std::fflush(stderr);
     }
 
-    void HideCursor()
-    {
-        if(!cursor_visible) return;
-        cursor_visible = false;
-        std::fputs("\33[?25l", stderr); // hide cursor
-    }
-
-    void ShowCursor()
-    {
-        if(cursor_visible) return;
-        cursor_visible = true;
-        GotoXY(0,maxy); Color(7);
-        std::fputs("\33[?25h", stderr); // show cursor
-        std::fflush(stderr);
-    }
-
     void InitMessage(int color, const char *message, int nchars)
     {
         if(screen_mode)
@@ -101,7 +77,7 @@ public:
         std::fflush(stderr);
     }
 
-    void InitScreen()
+    void CreateGrid(int width, int height, int *out_width, int *out_height)
     {
         screen_mode = true;
 
@@ -109,12 +85,13 @@ public:
         GotoXY(0,0); Color(15);
         std::fputs("Hit Ctrl-C to quit\r", stderr);
         HideCursor();
+
+        *out_width = width;
+        *out_height = height;
     }
 
     void Draw(int notex,int notey, int color, char ch)
     {
-        if(!screen_mode)
-            InitScreen();
         if(slots[notex][notey] != ch
         || slotcolors[notex][notey] != color)
         {
@@ -129,6 +106,29 @@ public:
 
     void Flush()
     {
+        std::fflush(stderr);
+    }
+
+private:
+    int x, y, color, maxy;
+    char slots[MaxWidth][MaxHeight];
+    unsigned char slotcolors[MaxWidth][MaxHeight];
+    bool cursor_visible;
+    bool screen_mode;
+
+    void HideCursor()
+    {
+        if(!cursor_visible) return;
+        cursor_visible = false;
+        std::fputs("\33[?25l", stderr); // hide cursor
+    }
+
+    void ShowCursor()
+    {
+        if(cursor_visible) return;
+        cursor_visible = true;
+        GotoXY(0,maxy); Color(7);
+        std::fputs("\33[?25h", stderr); // show cursor
         std::fflush(stderr);
     }
 
@@ -175,17 +175,12 @@ public:
             color = newcolor;
         }
     }
-private:
-    int x, y, color, maxy;
-    char slots[MaxWidth][MaxHeight];
-    unsigned char slotcolors[MaxWidth][MaxHeight];
-    bool cursor_visible;
-    bool screen_mode;
 };
 
 ConsoleInterface::~ConsoleInterface() {}
 
 UI::UI():
+    width(0), height(0),
     txtline(1)
 {
     std::memset(background, '.', sizeof(background));
@@ -231,7 +226,7 @@ void UI::PrintLn(const char* fmt, ...)
         }
     }
 
-    txtline=(1 + txtline) % WinHeight();
+    txtline=(1 + txtline) % height;
 }
 
 void UI::InitMessage(int color, const char *fmt, ...)
@@ -249,13 +244,23 @@ void UI::InitMessage(int color, const char *fmt, ...)
     console->InitMessage(color, Line, nchars);
 }
 
+void UI::StartGrid()
+{
+    int req_lines;
+    if(AdlPercussionMode)
+        req_lines = std::min(2u, NumCards) * 23;
+    else
+        req_lines = std::min(3u, NumCards) * 18;
+    console->CreateGrid(MaxWidth, req_lines, &width, &height);
+}
+
 void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend)
 {
     // If not in percussion mode the lower 5 channels are not use, so use 18 lines per chip instead of 23
     if(!AdlPercussionMode)
         adlchn = (adlchn / 23) * 18 + (adlchn % 23);
     int notex = 2 + (note+55)%77;
-    int notey = 1 + adlchn % WinHeight();
+    int notey = 1 + adlchn % height;
     char illustrate_char = background[notex][notey];
     if(pressure > 0)
     {
@@ -278,7 +283,7 @@ void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend
 
 void UI::IllustrateVolumes(double left, double right)
 {
-    const unsigned maxy = WinHeight();
+    const unsigned maxy = height;
     const unsigned white_threshold  = maxy/23;
     const unsigned red_threshold    = maxy*4/23;
     const unsigned yellow_threshold = maxy*8/23;
@@ -300,7 +305,7 @@ void UI::IllustrateVolumes(double left, double right)
 
 void UI::IllustratePatchChange(int MidCh, int patch, int adlinsid)
 {
-    if(MidCh < 0 || MidCh >= (int)WinHeight() || (patch != -1 && curpatch[MidCh] == patch && curins[MidCh] == adlinsid))
+    if(MidCh < 0 || MidCh >= height || (patch != -1 && curpatch[MidCh] == patch && curins[MidCh] == adlinsid))
         return;
     curpatch[MidCh] = patch;
     curins[MidCh] = adlinsid;

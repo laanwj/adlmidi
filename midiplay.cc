@@ -439,12 +439,15 @@ int main(int argc, char** argv)
     if(rv >= 0)
         return rv;
 
+    StartAudio();
+
+    UI.StartGrid();
+
     MIDIeventhandler evh;
     MIDIplay player(&evh);
     if(!player.LoadMIDI(argv[1]))
         return 2;
 
-    StartAudio();
     for(int delay=0; !QuitFlag; )
     {
         const int n_samples = std::min(delay, (int)MaxSamplesAtTime);

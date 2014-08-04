@@ -278,6 +278,10 @@ int main(int argc, char** argv)
     if(rv >= 0)
         return rv;
 
+    StartAudio();
+
+    UI.StartGrid();
+
     MIDIeventhandler evh;
     evh.Reset();
     Tester InstrumentTester(evh.opl);
@@ -285,7 +289,6 @@ int main(int argc, char** argv)
     const double mindelay = 1 / (double)PCM_RATE;
     const double maxdelay = MaxSamplesAtTime / (double)PCM_RATE;
 
-    StartAudio();
     for(double delay=0; !QuitFlag; )
     {
         const double eat_delay = delay < maxdelay ? delay : maxdelay;
