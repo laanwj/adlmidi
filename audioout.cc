@@ -375,11 +375,11 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
     spec.callback = SDL_AudioCallback;
     if(SDL_OpenAudio(&spec, &obtained) < 0)
     {
-        std::UI.InitMessage(-1, "Couldn't open audio: %s\n", SDL_GetError());
+        UI.InitMessage(-1, "Couldn't open audio: %s\n", SDL_GetError());
         //return 1;
     }
     if(spec.samples != obtained.samples)
-        std::UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
+        UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
     min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;

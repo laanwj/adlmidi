@@ -47,7 +47,7 @@ include_directories(${ALSA_INCLUDE_DIRS})
 set(SEQ_LIBS ${SEQ_LIBS} ${ALSA_LIBRARIES})
 
 # Jack
-pkg_check_modules (JACK REQUIRED jack>=0.115.6)
+pkg_check_modules (JACK jack>=0.115.6)
 if (JACK_FOUND)
     message(STATUS "Found jack ${JACK_VERSION}")
 else (JACK_FOUND)
@@ -125,6 +125,9 @@ add_library(oplsynth STATIC
 )
 
 if (QT_ENABLED)
+    # TODO: Qt should provide a new main object instead of
+    # an ancillary one.
+    # Launch synthesizer in a thread.
     set(adlmidi_QT qtconsole.cc)
 endif (QT_ENABLED)
 
