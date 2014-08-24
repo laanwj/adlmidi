@@ -56,7 +56,7 @@ int ParseArguments(int argc, char **argv)
             " -s Enables scaling of modulator volumes\n"
             " -nl Quit without looping\n"
             " -w Write WAV file rather than playing\n"
-            " -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)\n"
+            " -emu=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)\n"
             " -fp Enable full stereo panning\n"
             " -bs Allow bank switch (Bank LSB changes bank)\n"
             " -noreverb Disable reverb\n"
