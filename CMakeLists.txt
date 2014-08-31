@@ -148,8 +148,8 @@ target_link_libraries(adlmidi adlmidi_shared)
 add_executable(adlseq seqplay.cc)
 target_link_libraries(adlseq adlmidi_shared ${SEQ_LIBS}) 
 
-add_executable(adltester adltester.cc)
-target_link_libraries(adltester adlmidi_shared)
+#add_executable(adltester adltester.cc)
+#target_link_libraries(adltester adlmidi_shared)
 
 add_executable(gen_adldata gen_adldata.cc)
 target_link_libraries(gen_adldata oplsynth)

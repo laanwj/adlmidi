@@ -187,7 +187,7 @@ void Clock::Sync(uint32_t out_samples)
 {
     uint64_t clk_samples = CurrentSamples();
     int32_t difference = SamplesSignedDiff(clk_samples, out_samples);
-    if(abs(difference) > 1000)
+    if(abs(difference) > 1000) /// Require a minimum threshold before adjusting to avoid jitter
     {
         start_time += (int64_t)difference * NANOS_PER_S / PCM_RATE;
         UI.PrintLn("Clock sync correcting difference of %d samples", difference);
@@ -387,46 +387,60 @@ void AlsaSeqListener::Run()
     }
 }
 
-
-/* Synthesis loop: read events from queue and write audio */
-void SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue)
+/** Synthesize samples from event queue.
+ */
+class SynthLoop: public AudioGenerator
 {
-    MIDIeventhandler evh;
-    evh.Reset();
-
-    uint32_t cur_samples = 0;
-    while( !QuitFlag )
+public:
+    SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue):
+        midiclock(midiclock),
+        midiqueue(midiqueue),
+        cur_samples(0)
     {
-        float buffer[MaxSamplesAtTime*2] = {};
-        unsigned long n_samples = MaxSamplesAtTime;
-        uint32_t nextEventTime;
-        if(midiqueue->PeekEvent(nextEventTime))
-        {
-            n_samples = std::min(SamplesDiff(nextEventTime, cur_samples), MaxSamplesAtTime);
-            //printf("current time %i, next event at %i\n", (int)cur_samples, (int)nextEventTime);
-        } else {
-            //printf("current time %i, no next event\n", (int)cur_samples);
-        }
-	evh.opl.Update(buffer, n_samples);
-	SendStereoAudio(n_samples, buffer);
+        evh.Reset();
+    }
+    ~SynthLoop() {}
 
-        AudioWait();
-        evh.Tick(n_samples / (double)PCM_RATE);
-
-        cur_samples += n_samples;
-        // Process events as long as they're either now or in the past
-        while(midiqueue->PeekEvent(nextEventTime))
+    void RequestSamples(unsigned long count, float* samples_out)
+    {
+        unsigned long offset = 0;
+        // opl.Update adds in samples, so initialize to zero
+        memset(samples_out, 0, count*2*sizeof(float));
+        while(offset < count)
         {
-            if(SamplesSmallerThan(nextEventTime, cur_samples))
-                UI.PrintLn("Warning: processing event in the past %i<%i\n", (int)nextEventTime, (int)cur_samples);
-            uint32_t timeDiff = SamplesDiff(nextEventTime, cur_samples);
-            if(timeDiff > 0)
-                break;
-            midiqueue->ProcessEvent(&evh);
+            unsigned long n_samples = std::min(count - offset, (unsigned long)MaxSamplesAtTime);
+            uint32_t nextEventTime;
+            if(midiqueue->PeekEvent(nextEventTime))
+            {
+                n_samples = std::min((unsigned long)SamplesDiff(nextEventTime, cur_samples), n_samples);
+                //printf("current time %i, next event at %i\n", (int)cur_samples, (int)nextEventTime);
+            } else {
+                //printf("current time %i, no next event\n", (int)cur_samples);
+            }
+            evh.opl.Update(&samples_out[offset*2], n_samples);
+            evh.Tick(n_samples / (double)PCM_RATE);
+
+            // Process events as long as they're either now or in the past
+            while(midiqueue->PeekEvent(nextEventTime))
+            {
+                if(SamplesSmallerThan(nextEventTime, cur_samples))
+                    UI.PrintLn("Warning: processing event in the past %i<%i\n", (int)nextEventTime, (int)cur_samples);
+                uint32_t timeDiff = SamplesDiff(nextEventTime, cur_samples);
+                if(timeDiff > 0)
+                    break;
+                midiqueue->ProcessEvent(&evh);
+            }
+            offset += n_samples;
+            cur_samples += n_samples;
         }
         midiclock->Sync(cur_samples);
     }
-}
+private:
+    Clock *midiclock;
+    MidiEventQueue *midiqueue;
+    MIDIeventhandler evh;
+    uint32_t cur_samples;
+};
 
 int main(int argc, char** argv)
 {
@@ -434,10 +448,6 @@ int main(int argc, char** argv)
     // The smaller the value, the more often SDL_AudioCallBack()
     // is called.
     const double AudioBufferLength = 0.025;
-    // How much do WE buffer, in seconds? The smaller the value, // the more prone to sound chopping we are.
-    const double OurHeadRoomLength = 0.05;
-    // The lag between visual content and audio content equals
-    // the sum of these two buffers.
 
     UI.InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
     UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
@@ -445,24 +455,26 @@ int main(int argc, char** argv)
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
 
-    InitializeAudio(AudioBufferLength, OurHeadRoomLength);
     int rv = ParseArguments(argc, argv);
     if(rv >= 0)
         return rv;
+    InitializeAudio(AudioBufferLength);
 
     Clock *midiclock;
     MidiEventQueue *midiqueue;
-    midiclock = new Clock((AudioBufferLength + OurHeadRoomLength) * NANOS_PER_S);
+    midiclock = new Clock(0);
     midiqueue = new MidiEventQueue();
 
     AlsaSeqListener *seqin = new AlsaSeqListener(midiclock, midiqueue);
     seqin->Start();
 
-    StartAudio();
-
     UI.StartGrid();
+    SynthLoop audio_gen(midiclock, midiqueue);
+    StartAudio(&audio_gen);
 
-    SynthLoop(midiclock, midiqueue);
+    /// XXX no way to quit right now
+    while(true)
+        sleep(10);
 
     ShutdownAudio();
 

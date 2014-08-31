@@ -14,17 +14,7 @@
 
 #include <assert.h>
 
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
-#include <deque>
-#include <algorithm>
-
-#include <signal.h>
-
+#include "audioout.hh"
 #include "adldata.hh"
 #include "config.hh"
 #include "ui.hh"
@@ -37,6 +27,14 @@
 // #define USE_REVERB
 // Frequency of volume updates in UI
 #define VOLUME_UPDATE_FREQ 24
+
+class AudioPostprocessor;
+static AudioGenerator *audio_gen;
+static AudioPostprocessor *audio_postprocessor;
+
+AudioGenerator::~AudioGenerator()
+{
+}
 
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
@@ -260,49 +258,26 @@ namespace WindowsAudio
           cache.erase(cache.begin(), cache.begin()+cache_reduction);
   }
 }
-#else
-#ifdef AUDIO_SDL // For SDL use shorts samples
-typedef short SampleType;
-inline SampleType sample_from_float(float in)
+#endif // WIN32
+
+inline short short_sample_from_float(float in)
 {
-    const float out = in * SAMPLE_MULT_FACTOR;
+    const float out = in * 32767.0;
     return out<-32768 ? -32768 : (out>32767 ?  32767 : out);
 }
-#else // AUDIO_JACK use floats
-typedef float SampleType;
-inline float sample_from_float(float in) { return in * SAMPLE_MULT_OUTPUT_FLOAT; }
-#endif
-typedef std::deque<SampleType> AudioBufferType;
-static AudioBufferType AudioBuffer;
-static MutexType AudioBuffer_lock;
-static CondType AudioBuffer_cond;
-static size_t min_samples;
-static bool audio_started;
-static bool audio_underflow;
-#endif // WIN32
 
 #ifdef AUDIO_SDL
 static SDL_AudioSpec obtained;
 static void SDL_AudioCallback(void*, Uint8* stream, int len)
 {
     short* target = (short*) stream;
-    AudioBuffer_lock.Lock();
-    /*if(len != AudioBuffer.size())
-        UI.InitMessage(-1, "len=%d stereo samples, AudioBuffer has %u stereo samples",
-            len/4, (unsigned) AudioBuffer.size()/2);*/
-    unsigned ate = len/2; // number of shorts
-    if(ate > AudioBuffer.size())
-    {
-        ate = AudioBuffer.size();
-        audio_underflow = true;
-    }
-    std::deque<short>::iterator i = AudioBuffer.begin();
-    for(unsigned a = 0; a < ate; ++a,++i)
-        target[a] = *i;
-    AudioBuffer.erase(AudioBuffer.begin(), i);
-    //UI.InitMessage(-1, " - remain %u\n", (unsigned) AudioBuffer.size()/2);
-    AudioBuffer_lock.Unlock();
-    AudioBuffer_cond.Signal();
+    unsigned nframes = len/(2*sizeof(short));
+    unsigned bufsize = nframes*2;
+    float in[bufsize]; /* need temporary buffer for interleaved samples */
+    if(audio_gen)
+        audio_gen->RequestSamples(nframes, in);
+    for(unsigned a = 0; a < bufsize; ++a)
+        target[a] = short_sample_from_float(in[a]);
 }
 #endif // AUDIO_SDL
 
@@ -314,19 +289,13 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 {
     float *out[2] = {(jack_default_audio_sample_t *) jack_port_get_buffer(output_port[0], nframes),
                      (jack_default_audio_sample_t *) jack_port_get_buffer(output_port[1], nframes)};
-    AudioBuffer_lock.Lock();
-    unsigned ate = nframes * 2; // number of shorts
-    if(ate > AudioBuffer.size())
-    {
-        ate = AudioBuffer.size();
-        audio_underflow = true;
-    }
-    std::deque<float>::iterator i = AudioBuffer.begin();
-    for(unsigned a = 0; a < ate; ++a,++i)
-        out[a&1][a>>1] = *i;
-    AudioBuffer.erase(AudioBuffer.begin(), i);
-    AudioBuffer_lock.Unlock();
-    AudioBuffer_cond.Signal();
+    unsigned bufsize = nframes*2;
+    float in[bufsize]; /* need temporary buffer for interleaved samples */
+    if(audio_gen)
+        audio_gen->RequestSamples(nframes, in);
+
+    for(unsigned a = 0; a < bufsize; ++a)
+        out[a&1][a>>1] = in[a];
     return 0;
 }
 static void JACK_ShutdownCallback(void *)
@@ -363,7 +332,7 @@ unsigned long upper_power_of_two(unsigned long v)
     return v;
 }
 
-void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
+void InitializeAudio(double AudioBufferLength)
 {
 #ifdef AUDIO_SDL
     // Set up SDL
@@ -382,8 +351,6 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
         UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
-    min_samples = obtained.samples*2 + (obtained.freq*2) * OurHeadRoomLength;
-    audio_started = false;
 #endif
 #ifdef AUDIO_JACK
     jack_options_t options = JackNullOption;
@@ -444,56 +411,82 @@ void InitializeAudio(double AudioBufferLength, double OurHeadRoomLength)
         }
     }
     jack_free(ports);
-
-    min_samples = AudioBufferLength*2 + (PCM_RATE*2) * OurHeadRoomLength;
-    audio_started = false;
 #endif
 }
 
-void StartAudio()
+/** Wrap audio_gen to provide
+ *  - volume visualization
+ *  - reverb
+ *  - final volume scaling
+ */
+class AudioPostprocessor: public AudioGenerator
+{
+public:
+    AudioPostprocessor(AudioGenerator *source):
+        source(source)
+    {
+    }
+    void RequestSamples(unsigned long count, float* samples)
+    {
+        source->RequestSamples(count, samples);
+        // Attempt to filter out the DC component. However, avoid doing
+        // sudden changes to the offset, for it can be audible.
+        double average[2]={0,0};
+        for(unsigned w=0; w<2; ++w)
+            for(unsigned long p = 0; p < count; ++p)
+                average[w] += samples[p*2+w];
+        for(unsigned w=0; w<2; ++w)
+                average[w] /= double(count);
+        static float prev_avg_flt[2] = {0,0};
+        float average_flt[2] =
+        {
+            prev_avg_flt[0] = (prev_avg_flt[0] + average[0]*0.04) / 1.04,
+            prev_avg_flt[1] = (prev_avg_flt[1] + average[1]*0.04) / 1.04
+        };
+        // Figure out the amplitude of both channels
+        static unsigned amplitude_display_counter = 0;
+        if(!amplitude_display_counter--)
+        {
+            amplitude_display_counter = (PCM_RATE / count) / VOLUME_UPDATE_FREQ;
+            double amp[2]={0,0};
+            for(unsigned w=0; w<2; ++w)
+            {
+                for(unsigned long p = 0; p < count; ++p)
+                    amp[w] += std::fabs(samples[p*2+w] - average[w]);
+                amp[w] /= double(count);
+                amp[w] *= 10240;
+                // Turn into logarithmic scale
+                const double dB = std::log(amp[w]<1 ? 1 : amp[w]) * 4.328085123;
+                const double maxdB = 3*16; // = 3 * log2(65536)
+                amp[w] = dB/maxdB;
+            }
+            UI.IllustrateVolumes(amp[0], amp[1]);
+        }
+
+        if(EnableReverb)
+        {
+            // TODO: reverb
+        }
+        for(unsigned long p = 0; p < 2 * count; ++p)
+            samples[p] *= SAMPLE_MULT_OUTPUT_FLOAT;
+    }
+
+private:
+    AudioGenerator *source;
+};
+
+void StartAudio(AudioGenerator *gen)
 {
 #ifdef __WIN32
     WindowsAudio::Open(PCM_RATE, 2, 16);
-#else
 #endif
+    audio_postprocessor = new AudioPostprocessor(gen);
+    audio_gen = audio_postprocessor;
 }
 
+#if 0
 void SendStereoAudio(unsigned long count, float* samples)
 {
-    if(!count) return;
-    // Attempt to filter out the DC component. However, avoid doing
-    // sudden changes to the offset, for it can be audible.
-    double average[2]={0,0};
-    for(unsigned w=0; w<2; ++w)
-        for(unsigned long p = 0; p < count; ++p)
-            average[w] += samples[p*2+w];
-    for(unsigned w=0; w<2; ++w)
-            average[w] /= double(count);
-    static float prev_avg_flt[2] = {0,0};
-    float average_flt[2] =
-    {
-        prev_avg_flt[0] = (prev_avg_flt[0] + average[0]*0.04) / 1.04,
-        prev_avg_flt[1] = (prev_avg_flt[1] + average[1]*0.04) / 1.04
-    };
-    // Figure out the amplitude of both channels
-    static unsigned amplitude_display_counter = 0;
-    if(!amplitude_display_counter--)
-    {
-        amplitude_display_counter = (PCM_RATE / count) / VOLUME_UPDATE_FREQ;
-        double amp[2]={0,0};
-        for(unsigned w=0; w<2; ++w)
-        {
-            for(unsigned long p = 0; p < count; ++p)
-                amp[w] += std::fabs(samples[p*2+w] - average[w]);
-            amp[w] /= double(count);
-            amp[w] *= SAMPLE_MULT_FACTOR;
-            // Turn into logarithmic scale
-            const double dB = std::log(amp[w]<1 ? 1 : amp[w]) * 4.328085123;
-            const double maxdB = 3*16; // = 3 * log2(65536)
-            amp[w] = dB/maxdB;
-        }
-        UI.IllustrateVolumes(amp[0], amp[1]);
-    }
 
     if(EnableReverb)
     {
@@ -606,44 +599,8 @@ void SendStereoAudio(unsigned long count, float* samples)
     if(!WritePCMfile)
         WindowsAudio::Write( (const unsigned char*) &AudioBuffer[0], 2*AudioBuffer.size());
 #endif
-#ifdef AUDIO_SDL
-    /* Start SDL audio processing when we have enough samples */
-    if(!WritePCMfile && !audio_started && cursize >= min_samples)
-    {
-        audio_started = true;
-        SDL_PauseAudio(0);
-    }
-#endif
-#ifndef __WIN32__
-    if(audio_underflow)
-    {
-        audio_underflow = false;
-        UI.PrintLn("Warning: an audio buffer underflow happened.");
-    }
-#endif
 }
-
-void AudioWait()
-{
-    if(WritePCMfile)
-        return;
-#ifndef __WIN32__
-    while(true)
-    {
-        AudioBuffer_lock.Lock();
-        size_t cursize = AudioBuffer.size();
-        if(cursize < min_samples)
-        {
-            AudioBuffer_lock.Unlock();
-            break;
-        }
-        AudioBuffer_cond.Wait(AudioBuffer_lock);
-        AudioBuffer_lock.Unlock();
-    }
-#else
-    //Sleep(1e3 * eat_delay);
 #endif
-}
 
 void ShutdownAudio()
 {
@@ -652,5 +609,6 @@ void ShutdownAudio()
 #else
     SDL_CloseAudio();
 #endif
+    delete audio_postprocessor;
 }
 

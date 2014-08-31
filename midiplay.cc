@@ -404,6 +404,41 @@ static void TidyupAndExit(int)
     raise(SIGINT);
 }
 
+/** Synthesize samples from midi file.
+ */
+class SynthLoop: public AudioGenerator
+{
+public:
+    SynthLoop():
+        player(&evh),
+        delay(0)
+    {
+    }
+    ~SynthLoop() {}
+
+    void RequestSamples(unsigned long count, float* samples_out)
+    {
+        unsigned long offset = 0;
+        // opl.Update adds in samples, so initialize to zero
+        memset(samples_out, 0, count*2*sizeof(float));
+        while(offset < count)
+        {
+            unsigned long n_samples = std::min(count - offset, std::min(delay, (unsigned long)MaxSamplesAtTime));
+
+            evh.opl.Update(&samples_out[offset*2], n_samples);
+            offset += n_samples;
+            delay = ceil(player.Tick(
+                        n_samples / (double)PCM_RATE,
+                        1.0 / (double)PCM_RATE) * (double)PCM_RATE);
+        }
+    }
+    MIDIplay player;
+private:
+    MIDIeventhandler evh;
+    /** Delay until next event */
+    unsigned long delay;
+};
+
 #ifdef __WIN32__
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
 {
@@ -422,11 +457,6 @@ int main(int argc, char** argv)
     // The smaller the value, the more often SDL_AudioCallBack()
     // is called.
     const double AudioBufferLength = 0.045;
-    // How much do WE buffer, in seconds? The smaller the value,
-    // the more prone to sound chopping we are.
-    const double OurHeadRoomLength = 0.1;
-    // The lag between visual content and audio content equals
-    // the sum of these two buffers.
 
     UI.InitMessage(15, "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n");
     UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
@@ -434,39 +464,21 @@ int main(int argc, char** argv)
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
 
-    InitializeAudio(AudioBufferLength, OurHeadRoomLength);
     int rv = ParseArguments(argc, argv);
     if(rv >= 0)
         return rv;
 
-    StartAudio();
+    InitializeAudio(AudioBufferLength);
 
     UI.StartGrid();
-
-    MIDIeventhandler evh;
-    MIDIplay player(&evh);
-    if(!player.LoadMIDI(argv[1]))
+    SynthLoop audio_gen;
+    if(!audio_gen.player.LoadMIDI(argv[1]))
         return 2;
+    StartAudio(&audio_gen);
 
-    for(int delay=0; !QuitFlag; )
-    {
-        const int n_samples = std::min(delay, (int)MaxSamplesAtTime);
-
-        if(SkipForward > 0)
-            SkipForward -= 1;
-        else
-        {
-	    float buffer[MaxSamplesAtTime*2] = {};
-	    evh.opl.Update(buffer, n_samples);
-	    SendStereoAudio(n_samples, buffer);
-            AudioWait();
-        }
-        int nextdelay = ceil(player.Tick(
-		    n_samples / (double)PCM_RATE,
-		    1.0 / (double)PCM_RATE) * (double)PCM_RATE);
-
-        delay = nextdelay;
-    }
+    /// XXX need condition for when to quit
+    while(!QuitFlag)
+        sleep(1);
 
     ShutdownAudio();
     UI.Cleanup();

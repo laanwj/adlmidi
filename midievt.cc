@@ -261,6 +261,8 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
+    // XXX these messages don't appear as Reset is called after UI.InitGrid();
+    // either move this sooner to the argument parser or UI.PrintLn
     // XXX DBOPLv2 and YMF262 does not support fullpan yet
     const char *emuname = NULL;
     switch(emutype)
