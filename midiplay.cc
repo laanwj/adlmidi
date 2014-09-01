@@ -421,7 +421,7 @@ public:
         unsigned long offset = 0;
         // opl.Update adds in samples, so initialize to zero
         memset(samples_out, 0, count*2*sizeof(float));
-        while(offset < count)
+        while(offset < count && !QuitFlag)
         {
             unsigned long n_samples = std::min(count - offset, std::min(delay, (unsigned long)MaxSamplesAtTime));
 
