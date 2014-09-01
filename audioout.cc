@@ -607,8 +607,17 @@ void ShutdownAudio()
 #ifdef __WIN32__
     WindowsAudio::Close();
 #else
+#ifdef AUDIO_SDL
     SDL_CloseAudio();
 #endif
+#ifdef AUDIO_JACK
+    jack_deactivate(client);
+    for(int port=0; port<2; ++port)
+        jack_port_unregister(client, output_port[port]);
+    jack_client_close(client);
+#endif
+#endif
+    audio_gen = 0;
     delete audio_postprocessor;
 }
 
