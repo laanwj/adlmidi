@@ -211,7 +211,6 @@ private:
     SDL_Thread *alsa_thread;
     volatile bool terminate;
     snd_seq_t *seq;
-    int port_count;
     snd_midi_event_t *midi_enc;
 
     void Run();
@@ -326,7 +325,6 @@ AlsaSeqListener::AlsaSeqListener(Clock *midiclock, MidiEventQueue *midiqueue):
     alsa_thread(0),
     terminate(false),
     seq(0),
-    port_count(0),
     midi_enc(0)
 {
 }
@@ -339,17 +337,12 @@ AlsaSeqListener::~AlsaSeqListener()
 void AlsaSeqListener::Start()
 {
     int err;
-    /// XXX need a way to enumerate ports and choose one
     init_seq();
     create_port();
     err = snd_seq_nonblock(seq, 1);
     check_snd("set nonblock mode", err);
-    if (port_count > 0)
-        UI.InitMessage(-1, "Waiting for data.");
-    else
-        UI.InitMessage(-1, "Waiting for data at port %d:0.",
-               snd_seq_client_id(seq));
-    UI.InitMessage(-1, "\n");
+    UI.InitMessage(-1, "Waiting for data at port %d:0.\n",
+           snd_seq_client_id(seq));
 
     alsa_thread = SDL_CreateThread(AlsaThread, this);
     terminate = false;
