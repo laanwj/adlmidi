@@ -261,8 +261,6 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
-    // XXX these messages don't appear as Reset is called after UI.InitGrid();
-    // either move this sooner to the argument parser or UI.PrintLn
     // XXX DBOPLv2 and YMF262 does not support fullpan yet
     const char *emuname = NULL;
     switch(emutype)
@@ -274,7 +272,7 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
 	default: abort();
     }
-    UI.InitMessage(-1, "OPL emulation used: %s (fullpan %s)\n", emuname, fullpan?"on":"off");
+    UI.PrintLn("OPL emulation used: %s (fullpan %s)", emuname, fullpan?"on":"off");
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
@@ -317,7 +315,7 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
                                        + AdlPercussionMode*0x20) );
         unsigned fours_this_card = std::min(fours, 6u);
         Poke(card, 0x104, (1 << fours_this_card) - 1);
-        //UI.InitMessage(-1, "Card %u: %u four-ops.\n", card, fours_this_card);
+        //UI.PrintLn("Card %u: %u four-ops.", card, fours_this_card);
         fours -= fours_this_card;
     }
 
@@ -344,11 +342,16 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
     }
 
     /**/
-    UI.InitMessage(-1, "Channels used as:\n");
-    for(size_t a=0; a<four_op_category.size(); ++a)
+    UI.PrintLn("Channels used as:");
+    for(size_t a=0; a<four_op_category.size(); a += 23)
     {
-        UI.InitMessage(-1, " %d", four_op_category[a]);
-        if(a%23 == 22) UI.InitMessage(-1, "\n");
+        UI.PrintLn(" %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+            four_op_category[a+0], four_op_category[a+1], four_op_category[a+2], four_op_category[a+3], four_op_category[a+4],
+            four_op_category[a+5], four_op_category[a+6], four_op_category[a+7], four_op_category[a+8], four_op_category[a+9],
+            four_op_category[a+10], four_op_category[a+11], four_op_category[a+12], four_op_category[a+13], four_op_category[a+14],
+            four_op_category[a+15], four_op_category[a+16], four_op_category[a+17], four_op_category[a+18], four_op_category[a+19],
+            four_op_category[a+20], four_op_category[a+21], four_op_category[a+22]
+            );
     }
     /**/
     /*
