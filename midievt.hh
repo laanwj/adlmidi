@@ -43,22 +43,22 @@ static inline unsigned MidiEventLength(unsigned char byte)
 {
     switch(byte & 0xF0)
     {
-        case 0x80: return 2; // Note off
-        case 0x90: return 2; // Note on
-        case 0xA0: return 2; // Note touch
-        case 0xB0: return 2; // Controller change
-        case 0xC0: return 1; // Patch change
-        case 0xD0: return 1; // Channel after-touch
-        case 0xE0: return 2; // Wheel/pitch bend
+        case 0x80: return 3; // Note off
+        case 0x90: return 3; // Note on
+        case 0xA0: return 3; // Note touch
+        case 0xB0: return 3; // Controller change
+        case 0xC0: return 2; // Patch change
+        case 0xD0: return 2; // Channel after-touch
+        case 0xE0: return 3; // Wheel/pitch bend
         default: break;
     }
     switch(byte)
     {
-        case 0xF2: return 2; // Time code quarter frame
-        case 0xF3: return 1; // Song select
+        case 0xF2: return 3; // Time code quarter frame
+        case 0xF3: return 2; // Song select
         // Rest of the events all have 0 data bytes (or variable, in case of sysex)
     }
-    return 0;
+    return 1;
 }
 
 // Process MIDI events and send them to OPL
@@ -173,8 +173,8 @@ private:
     void ChannelAfterTouch(int MidCh, int vol);
     void WheelPitchBend(int MidCh, int a, int b);
 public:
-    void HandleEvent(int chanofs, unsigned char byte, const unsigned char *data, unsigned length);
-    void SetNumChannels(int channels);
+    void HandleEvent(int port, const unsigned char *data, unsigned length);
+    void SetNumPorts(int channels);
     void Reset();
     void Tick(double s);
 };

@@ -1178,59 +1178,62 @@ void MIDIeventhandler::WheelPitchBend(int MidCh, int a, int b)
     NoteUpdate_All(MidCh, Upd_Pitch);
 }
 
-void MIDIeventhandler::HandleEvent(int chanofs, unsigned char byte, const unsigned char *data, unsigned length)
+void MIDIeventhandler::HandleEvent(int port, const unsigned char *data, unsigned length)
 {
+    if(length == 0)
+        return;
+    unsigned byte = data[0];
     if(byte == 0xF7 || byte == 0xF0) // Ignore SysEx
     {
         UI.PrintLn("SysEx %02X: %u bytes", byte, length);
         return;
     }
-    unsigned MidCh = chanofs + (byte & 0x0F), EvType = byte >> 4;
+    unsigned MidCh = port * 16 + (byte & 0x0F), EvType = byte >> 4;
     if(MidCh >= Ch.size() || length < MidiEventLength(byte))
         return;
     switch(EvType)
     {
         case 0x8: // Note off
         {
-            int note = data[0];
+            int note = data[1];
             // Note-off volume is unused
             NoteOff(MidCh, note);
             break;
         }
         case 0x9: // Note on
         {
-            int note = data[0];
-            int  vol = data[1];
+            int note = data[1];
+            int  vol = data[2];
             NoteOn(MidCh, note, vol);
             break;
         }
         case 0xA: // Note touch
         {
-            int note = data[0];
-            int  vol = data[1];
+            int note = data[1];
+            int  vol = data[2];
             NoteTouch(MidCh, note, vol);
             break;
         }
         case 0xB: // Controller change
         {
-            int ctrlno = data[0];
-            int  value = data[1];
+            int ctrlno = data[1];
+            int  value = data[2];
             ControllerChange(MidCh, ctrlno, value);
             break;
         }
         case 0xC: // Patch change
-            PatchChange(MidCh, data[0]);
+            PatchChange(MidCh, data[1]);
             break;
         case 0xD: // Channel after-touch
         {
-            int  vol = data[0];
+            int  vol = data[1];
             ChannelAfterTouch(MidCh, vol);
             break;
         }
         case 0xE: // Wheel/pitch bend
         {
-            int a = data[0];
-            int b = data[1];
+            int a = data[1];
+            int b = data[2];
             WheelPitchBend(MidCh, a, b);
             break;
         }
@@ -1243,7 +1246,7 @@ void MIDIeventhandler::Reset()
     ch.clear();
     ch.resize(opl.NumChannels);
     Ch.clear();
-    SetNumChannels(16);
+    SetNumPorts(1);
 }
 
 void MIDIeventhandler::Tick(double s)
@@ -1255,10 +1258,11 @@ void MIDIeventhandler::Tick(double s)
     UpdateArpeggio(s);
 }
 
-void MIDIeventhandler::SetNumChannels(int channels)
+void MIDIeventhandler::SetNumPorts(int ports)
 {
-    Ch.resize(channels);
-    for(int ch=0; ch<channels; ++ch)
+    size_t ch = Ch.size();
+    Ch.resize(ports * 16);
+    for(; ch<Ch.size(); ++ch)
         UI.IllustratePatchChange(ch, -1, -1);
 }
 

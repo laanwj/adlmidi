@@ -52,21 +52,18 @@ private:
         /* output port (channel offset divided by 16) */
         uint8_t port;
         /* first byte of midi message -- if 0xF7 or 0xF0 must be accompanied by
-         * entry in sysex queue */
-        uint8_t byte;
-        /* data bytes of midi message */
-        uint8_t data[2];
+         * entry in sysex queue (not implemented) */
+        uint8_t data[3];
     };
     typedef std::vector<uint8_t> MidiSysExData;
 
     std::deque<MidiEvent> eventqueue;
-    // std::deque<MidiSysExData> sysexqueue; TODO
     MutexType mutex;
 public:
     MidiEventQueue();
     ~MidiEventQueue();
 
-    void PushEvent(uint32_t timestamp, int chanofs, unsigned char byte, const unsigned char *data, unsigned length);
+    void PushEvent(uint32_t timestamp, int port, const unsigned char *data, unsigned length);
     bool PeekEvent(uint32_t &nextEventTime);
     bool ProcessEvent(MIDIeventhandler *evh);
 };
@@ -76,17 +73,14 @@ MidiEventQueue::MidiEventQueue()
 MidiEventQueue::~MidiEventQueue()
 {
 }
-void MidiEventQueue::PushEvent(uint32_t timestamp, int chanofs, unsigned char byte, const unsigned char *data, unsigned length)
+void MidiEventQueue::PushEvent(uint32_t timestamp, int port, const unsigned char *data, unsigned length)
 {
+    if(length==0 || length>3)
+        return;
     MidiEvent evt;
     evt.timestamp = timestamp;
-    evt.port = chanofs / 16;
-    evt.byte = byte;
-    // TODO handle sysex
-    if(length>0)
-        evt.data[0] = data[0];
-    if(length>1)
-        evt.data[1] = data[1];
+    evt.port = port;
+    memcpy(evt.data, data, length);
     //printf("Inserting event: %i %02x %02x %02x\n", (int)timestamp, evt.byte, evt.data[0], evt.data[1]);
     mutex.Lock();
     eventqueue.push_back(evt);
@@ -108,7 +102,6 @@ bool MidiEventQueue::ProcessEvent(MIDIeventhandler *evh)
 {
     bool rv = false;
     MidiEvent evt;
-    // MidiSysExData data; TODO
     mutex.Lock();
     if(!eventqueue.empty())
     {
@@ -120,10 +113,9 @@ bool MidiEventQueue::ProcessEvent(MIDIeventhandler *evh)
     if(!rv)
         return false;
 
-    // TODO handle sysex
     //printf("Processing event: %i port=%02x %02x %02x %02x length=%i\n", evt.timestamp, evt.port, evt.byte, evt.data[0], evt.data[1],
     //        MidiEventLength(evt.byte));
-    evh->HandleEvent(evt.port * 16, evt.byte, evt.data, MidiEventLength(evt.byte));
+    evh->HandleEvent(evt.port, evt.data, MidiEventLength(evt.data[0]));
     return true;
 }
 
@@ -294,7 +286,7 @@ void AlsaSeqListener::handle_alsa_event(uint32_t timestamp, const snd_seq_event_
         if(ev->data.ext.len >= 1)
         {
             const unsigned char *data = (unsigned char*)ev->data.ext.ptr;
-            midiqueue->PushEvent(timestamp, 0, data[0], &data[1], ev->data.ext.len-1);
+            midiqueue->PushEvent(timestamp, 0, data, ev->data.ext.len);
         }
         return;
     }
@@ -306,9 +298,8 @@ void AlsaSeqListener::handle_alsa_event(uint32_t timestamp, const snd_seq_event_
     check_snd("decode midi event", (int)bytes);
     for(long ptr=0; ptr<bytes; )
     {
-        unsigned char byte = buf[ptr++];
-        unsigned length = MidiEventLength(byte);
-        midiqueue->PushEvent(timestamp, 0, byte, &buf[ptr], length);
+        unsigned int length = MidiEventLength(buf[ptr]);
+        midiqueue->PushEvent(timestamp, 0, &buf[ptr], length);
         ptr += length;
     }
 }
@@ -397,8 +388,7 @@ public:
 
     void PushEvent(uint32_t timestamp, int port, const unsigned char *data, unsigned length)
     {
-        assert(length);
-        midiqueue->PushEvent(cur_samples + timestamp, port*16, data[0], &data[1], length-1);
+        midiqueue->PushEvent(cur_samples + timestamp, port, data, length);
     }
 
     void RequestSamples(unsigned long count, float* samples_out)

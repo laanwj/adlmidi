@@ -63,7 +63,7 @@ class MIDIplay
     } CurrentPosition, LoopBeginPosition;
 
     std::vector< std::vector<unsigned char> > TrackData;
-    std::map<unsigned/*track*/, unsigned/*channel begin index*/> current_device;
+    std::map<unsigned/*track*/, unsigned/*port index*/> current_device;
 public:
     explicit MIDIplay(MIDIeventhandler *evh):
         evh(evh)
@@ -274,9 +274,9 @@ public:
     {
         std::map<std::string, unsigned>::iterator i = devices.find(name);
         if(i != devices.end()) return i->second;
-        size_t n = devices.size() * 16;
+        size_t n = devices.size();
         devices.insert( std::make_pair(name, n) );
-        evh->SetNumChannels(n + 16);
+        evh->SetNumPorts(n + 1);
         return n;
     }
 
@@ -348,16 +348,16 @@ private:
     void HandleEvent(size_t tk)
     {
         unsigned char byte = TrackData[tk][CurrentPosition.track[tk].ptr++];
-        unsigned length;
-        if(byte == 0xF7 || byte == 0xF0) // SysEx
+        if(byte == 0xF7 || byte == 0xF0) // SysEx - ignore for now
         {
-            length = ReadVarLen(tk);
+            unsigned int length = ReadVarLen(tk);
+            CurrentPosition.track[tk].ptr += length;
         }
         else if(byte == 0xFF)
         {
             // Special event FF
             unsigned char evtype = TrackData[tk][CurrentPosition.track[tk].ptr++];
-            length = ReadVarLen(tk);
+            unsigned int length = ReadVarLen(tk);
             std::string data( length?(const char*) &TrackData[tk][CurrentPosition.track[tk].ptr]:0, length );
             CurrentPosition.track[tk].ptr += length;
             if(evtype == 0x2F) { CurrentPosition.track[tk].status = -1; return; }
@@ -383,15 +383,16 @@ private:
             if(byte < 0x80) // Running status
               { byte = CurrentPosition.track[tk].status | 0x80;
                 CurrentPosition.track[tk].ptr--; }
-            length = MidiEventLength(byte);
+            unsigned int length = MidiEventLength(byte);
+            // Write event into consecutive buffer and submit it
+            unsigned char data[3];
+            data[0] = byte;
+            for(unsigned int x=1; x<length; ++x)
+                data[x] = TrackData[tk][CurrentPosition.track[tk].ptr++];
+            evh->HandleEvent(current_device[tk], data, length);
         }
-        evh->HandleEvent(current_device[tk], byte, &TrackData[tk][CurrentPosition.track[tk].ptr], length);
         if((byte&0xF0) == 0x90) // First note
             CurrentPosition.began  = true;
-        CurrentPosition.track[tk].ptr += length;
-        /*UI.PrintLn("@%X Track %u: %02X %02X",
-            CurrentPosition.track[tk].ptr-1, (unsigned)tk, byte,
-            TrackData[tk][CurrentPosition.track[tk].ptr]);*/
         CurrentPosition.track[tk].status = byte;
     }
 };
