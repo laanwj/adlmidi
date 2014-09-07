@@ -31,7 +31,7 @@ Features:
 
 This fork adds the following:
 
-* `adlseq`: Play MIDI events from ALSA sequencer socket. This means that it can be connected
+* `adlseq`: Play MIDI events from ALSA or JACK sequencer socket. This means that it can be connected
   to other MIDI sources (like games, keyboards or sequencer programs) with `aconnect` or the interface
   of the program itself.
 * A legend showing what instrument is active on what MIDI channel
