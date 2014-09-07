@@ -247,8 +247,6 @@ void OPL3IF::Pan(unsigned c, unsigned value)
         // Smooth panning (From zdoom)
         // This is the MIDI-recommended pan formula. 0 and 1 are
         // both hard left so that 64 can be perfectly center.
-        // (Note that the 'pan' passed to this function is the
-        // MIDI pan position, subtracted by 64.)
         double level = (value <= 1) ? 0 : (value - 1) / 126.0;
         cards[card]->SetPanning(cc, (float)cosf(HALF_PI * level), (float)sinf(HALF_PI * level));
     }
