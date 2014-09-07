@@ -21,6 +21,7 @@
 
 #ifdef AUDIO_JACK
 #include <jack/jack.h>
+#include <jack/midiport.h>
 #endif
 
 // Comment this out to disable reverb and other postprocessing of the audio
@@ -31,10 +32,16 @@
 class AudioPostprocessor;
 static AudioGenerator *audio_gen;
 static AudioPostprocessor *audio_postprocessor;
+static MIDIReceiver *midi_if;
 
 AudioGenerator::~AudioGenerator()
 {
 }
+
+MIDIReceiver::~MIDIReceiver()
+{
+}
+
 
 struct Reverb /* This reverb implementation is based on Freeverb impl. in Sox */
 {
@@ -283,6 +290,8 @@ static void SDL_AudioCallback(void*, Uint8* stream, int len)
 
 #ifdef AUDIO_JACK
 jack_port_t *output_port[2];
+#define NUM_MIDI_PORTS 1
+jack_port_t *midi_port[NUM_MIDI_PORTS];
 jack_client_t *client;
 // JACK audio callback
 static int JACK_AudioCallback(jack_nframes_t nframes, void *)
@@ -291,6 +300,23 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
                      (jack_default_audio_sample_t *) jack_port_get_buffer(output_port[1], nframes)};
     unsigned bufsize = nframes*2;
     float in[bufsize]; /* need temporary buffer for interleaved samples */
+
+    if(midi_if)
+    {
+        // Process MIDI input
+        for(int port=0; port<NUM_MIDI_PORTS; ++port)
+        {
+            void *port_buf = jack_port_get_buffer(midi_port[port], nframes);
+            jack_nframes_t event_count = jack_midi_get_event_count(port_buf);
+            for(jack_nframes_t idx=0; idx<event_count; ++idx)
+            {
+                jack_midi_event_t in_event;
+                jack_midi_event_get(&in_event, port_buf, idx);
+                midi_if->PushEvent(in_event.time, port, in_event.buffer, in_event.size);
+            }
+        }
+    }
+
     if(audio_gen)
         audio_gen->RequestSamples(nframes, in);
 
@@ -382,6 +408,7 @@ void InitializeAudio(double AudioBufferLength)
 
     // create two ports, for stereo audio
     const char * const portnames[] = { "out_1", "out_2" };
+    const char * const midi_portnames[] = { "midi_1" };
     for(int port=0; port<2; ++port)
     {
         output_port[port] = jack_port_register(client, portnames[port],
@@ -389,6 +416,17 @@ void InitializeAudio(double AudioBufferLength)
                                          JackPortIsOutput, 0);
         if (output_port[port] == NULL) {
             UI.InitMessage(-1, "no more JACK ports available\n");
+            exit(1);
+        }
+    }
+
+    for(int port=0; port<NUM_MIDI_PORTS; ++port)
+    {
+        midi_port[port] = jack_port_register(client, midi_portnames[port],
+                                         JACK_DEFAULT_MIDI_TYPE,
+                                         JackPortIsInput, 0);
+        if (midi_port[port] == NULL) {
+            UI.InitMessage(-1, "no more JACK midi ports available\n");
             exit(1);
         }
     }
@@ -475,13 +513,14 @@ private:
     AudioGenerator *source;
 };
 
-void StartAudio(AudioGenerator *gen)
+void StartAudio(AudioGenerator *gen, MIDIReceiver *midi)
 {
 #ifdef __WIN32
     WindowsAudio::Open(PCM_RATE, 2, 16);
 #endif
     audio_postprocessor = new AudioPostprocessor(gen);
     audio_gen = audio_postprocessor;
+    midi_if = midi;
 }
 
 #if 0
@@ -614,6 +653,8 @@ void ShutdownAudio()
     jack_deactivate(client);
     for(int port=0; port<2; ++port)
         jack_port_unregister(client, output_port[port]);
+    for(int port=0; port<NUM_MIDI_PORTS; ++port)
+        jack_port_unregister(client, midi_port[port]);
     jack_client_close(client);
 #endif
 #endif

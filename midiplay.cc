@@ -474,7 +474,7 @@ int main(int argc, char** argv)
     SynthLoop audio_gen;
     if(!audio_gen.player.LoadMIDI(argv[1]))
         return 2;
-    StartAudio(&audio_gen);
+    StartAudio(&audio_gen, NULL);
 
     /// XXX need condition for when to quit
     while(!QuitFlag)

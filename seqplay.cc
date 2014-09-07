@@ -388,8 +388,9 @@ void AlsaSeqListener::Run()
 }
 
 /** Synthesize samples from event queue.
+ * All these are called from the audio thread.
  */
-class SynthLoop: public AudioGenerator
+class SynthLoop: public AudioGenerator, public MIDIReceiver
 {
 public:
     SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue):
@@ -400,6 +401,12 @@ public:
         evh.Reset();
     }
     ~SynthLoop() {}
+
+    void PushEvent(uint32_t timestamp, int port, const unsigned char *data, unsigned length)
+    {
+        assert(length);
+        midiqueue->PushEvent(cur_samples + timestamp, port*16, data[0], &data[1], length-1);
+    }
 
     void RequestSamples(unsigned long count, float* samples_out)
     {
@@ -470,7 +477,7 @@ int main(int argc, char** argv)
 
     UI.StartGrid();
     SynthLoop audio_gen(midiclock, midiqueue);
-    StartAudio(&audio_gen);
+    StartAudio(&audio_gen, &audio_gen);
 
     /// XXX no way to quit right now
     while(true)
