@@ -39,7 +39,7 @@ bool QuitWithoutLooping = false;
 bool WritePCMfile = false;
 bool ScaleModulators = false;
 OPLEmuType EmuType = OPLEMU_DBOPLv2;
-bool FullPan = false;
+bool FullPan = true;
 bool AllowBankSwitch = false;
 bool EnableReverb = true;
 
