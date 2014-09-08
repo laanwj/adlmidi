@@ -1,31 +1,10 @@
-#include <vector>
-#include <string>
-#include <map>
-#include <set>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <unistd.h>
-#include <stdarg.h>
-#include <cstdio>
-#include <vector> // vector
-#include <deque>  // deque
-#include <cmath>  // exp, log, ceil
-
-#include <assert.h>
-
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
-#include <deque>
-#include <algorithm>
-
-#include <signal.h>
-
 #include "ui.hh"
+
+#include <cstring>
+#include <stdarg.h>
+#include <string>
+#include <vector>
+
 #include "adldata.hh"
 
 static const char MIDIsymbols[256+1] =

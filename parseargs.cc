@@ -1,33 +1,15 @@
-#include <vector>
-#include <string>
-#include <map>
-#include <set>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <unistd.h>
-#include <stdarg.h>
-#include <cstdio>
-#include <vector> // vector
-#include <deque>  // deque
-#include <cmath>  // exp, log, ceil
-
-#include <assert.h>
-
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
-#include <deque>
-#include <algorithm>
-
-#include <signal.h>
+#include "parseargs.hh"
 
 #include "adldata.hh"
 #include "config.hh"
 #include "ui.hh"
+
+#include <assert.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <vector>
 
 unsigned AdlBank    = 0;
 unsigned NumFourOps = 7;
@@ -193,52 +175,6 @@ int ParseArguments(int argc, char **argv)
         return 0;
     }
 
-
     return -1;
 }
-
-#ifdef __WIN32__
-/* Parse a command line buffer into arguments */
-static void UnEscapeQuotes( char *arg )
-{
-    for(char *last=0; *arg != '\0'; last=arg++)
-        if( *arg == '"' && *last == '\\' ) {
-            char *c_last = last;
-            for(char*c_curr=arg; *c_curr; ++c_curr) {
-                *c_last = *c_curr;
-                c_last = c_curr;
-            }
-            *c_last = '\0';
-        }
-}
-int ParseCommandLine(char *cmdline, char **argv)
-{
-    char *bufp, *lastp=NULL;
-    int argc=0, last_argc=0;
-    for (bufp = cmdline; *bufp; ) {
-        /* Skip leading whitespace */
-        while ( std::isspace(*bufp) ) ++bufp;
-        /* Skip over argument */
-        if ( *bufp == '"' ) {
-            ++bufp;
-            if ( *bufp ) { if (argv) argv[argc]=bufp; ++argc; }
-            /* Skip over word */
-            while ( *bufp && ( *bufp != '"' || *lastp == '\\' ) ) {
-                lastp = bufp;
-                ++bufp;
-            }
-        } else {
-            if ( *bufp ) { if (argv) argv[argc] = bufp; ++argc; }
-            /* Skip over word */
-            while ( *bufp && ! std::isspace(*bufp) ) ++bufp;
-        }
-        if(*bufp) { if(argv) *bufp = '\0'; ++bufp; }
-        /* Strip out \ from \" sequences */
-        if( argv && last_argc != argc ) UnEscapeQuotes( argv[last_argc]);
-        last_argc = argc;
-    }
-    if(argv) argv[argc] = 0;
-    return(argc);
-}
-#endif
 

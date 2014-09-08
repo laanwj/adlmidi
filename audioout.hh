@@ -1,6 +1,8 @@
 #ifndef H_AUDIOOUT
 #define H_AUDIOOUT
 
+#include <stdint.h>
+
 /**
  * Abstract class that can produce a number of stereo samples (2*float) on
  * request.

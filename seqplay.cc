@@ -1,32 +1,25 @@
-//#ifdef __MINGW32__
-//typedef struct vswprintf {} swprintf;
-//#endif
-
-#include <vector>
-#include <string>
-#include <map>
-#include <set>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <unistd.h>
-#include <stdarg.h>
-#include <cstdio>
-#include <vector> // vector
-#include <deque>  // deque
-#include <cmath>  // exp, log, ceil
-#include <alsa/asoundlib.h>
-
-#include <assert.h>
-
-#include <signal.h>
-
 #include "adldata.hh"
 #include "audioout.hh"
 #include "config.hh"
 #include "midievt.hh"
 #include "parseargs.hh"
 #include "ui.hh"
+
+#include <assert.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>  // deque
+#include <map>
+#include <set>
+#include <signal.h>
+#include <stdarg.h>
+#include <string>
+#include <unistd.h>
+#include <vector>
+
+#include <alsa/asoundlib.h>
 
 static volatile sig_atomic_t QuitFlag = false;
 const uint64_t NANOS_PER_S = 1000000000LL;

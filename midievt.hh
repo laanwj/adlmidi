@@ -1,7 +1,11 @@
 #ifndef H_MIDIEVT
 #define H_MIDIEVT
 
+#include "config.hh"
 #include "oplsynth/opl.h"
+
+#include <vector>
+#include <map>
 
 struct OPL3IF
 {

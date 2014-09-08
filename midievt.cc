@@ -1,34 +1,23 @@
-#include <vector>
-#include <string>
-#include <map>
-#include <set>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <unistd.h>
-#include <stdarg.h>
-#include <cstdio>
-#include <vector> // vector
-#include <deque>  // deque
-#include <cmath>  // exp, log, ceil
-
-#include <assert.h>
-
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
-#include <deque>
-#include <algorithm>
-
-#include <signal.h>
+#include "midievt.hh"
 
 #include "adldata.hh"
 #include "config.hh"
-#include "midievt.hh"
 #include "ui.hh"
+
+#include <algorithm>
+#include <assert.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <map>
+#include <set>
+#include <signal.h>
+#include <stdarg.h>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 static const char PercussionMap[256] =
 "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"//GM

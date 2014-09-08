@@ -274,7 +274,6 @@ And all the executables will be built:
 
 - `adlmidi`: MIDI player
 - `adlseq`: ALSA sequencer
-- `adltester`: Instrument tester
 - `gen_adldata`: Generate `adldata.cc` (only needed if you want to add instrument banks)
 - `dumpmiles`
 - `dumpbank`

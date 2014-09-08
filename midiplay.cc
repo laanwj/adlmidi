@@ -1,34 +1,3 @@
-//#ifdef __MINGW32__
-//typedef struct vswprintf {} swprintf;
-//#endif
-
-#include <vector>
-#include <string>
-#include <map>
-#include <set>
-#include <cstdlib>
-#include <cstring>
-#include <cmath>
-#include <unistd.h>
-#include <stdarg.h>
-#include <cstdio>
-#include <vector> // vector
-#include <deque>  // deque
-#include <cmath>  // exp, log, ceil
-
-#include <assert.h>
-
-#if !defined(__WIN32__) || defined(__CYGWIN__)
-# include <termio.h>
-# include <fcntl.h>
-# include <sys/ioctl.h>
-#endif
-
-#include <deque>
-#include <algorithm>
-
-#include <signal.h>
-
 #include "adldata.hh"
 #include "audioout.hh"
 #include "config.hh"
@@ -36,6 +5,20 @@
 #include "midievt.hh"
 #include "parseargs.hh"
 #include "ui.hh"
+
+#include <assert.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
+#include <map>
+#include <set>
+#include <signal.h>
+#include <stdarg.h>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 volatile sig_atomic_t QuitFlag = false;
 unsigned SkipForward = 0;
@@ -440,20 +423,8 @@ private:
     unsigned long delay;
 };
 
-#ifdef __WIN32__
-int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
-{
-    extern int main(int,char**);
-    char* cmdline = GetCommandLine();
-    int argc = ParseCommandLine(cmdline, NULL);
-    char**argv = new char* [argc+1];
-    ParseCommandLine(cmdline, argv);
-#else
-#undef main
-
 int main(int argc, char** argv)
 {
-#endif
     // How long is SDL buffer, in seconds?
     // The smaller the value, the more often SDL_AudioCallBack()
     // is called.
