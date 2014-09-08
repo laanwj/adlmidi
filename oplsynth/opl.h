@@ -15,12 +15,11 @@ public:
 	virtual void SetPanning(int c, float left, float right) = 0;
 };
 
-OPLEmul *DBOPLCreate(bool stereo);
-OPLEmul *JavaOPLCreate(bool stereo);
-OPLEmul *DBOPLv2Create(bool fullpan);
-OPLEmul *YMF262Create(bool fullpan);
+OPLEmul *DBOPLCreate(unsigned int sample_rate, bool stereo);
+OPLEmul *JavaOPLCreate(unsigned int sample_rate, bool stereo);
+OPLEmul *DBOPLv2Create(unsigned int sample_rate, bool fullpan);
+OPLEmul *YMF262Create(unsigned int sample_rate, bool fullpan);
 
-#define OPL_SAMPLE_RATE			((double)PCM_RATE)
 #define CENTER_PANNING_POWER	0.70710678118	/* [RH] volume at center for EQP */
 
 #endif

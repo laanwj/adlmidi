@@ -8,11 +8,6 @@ option (BuildForCore2_X86_64 "Build for Intel Core2 x86_64 system" OFF)
 # Audio backend
 set (DefaultAudio jack CACHE STRING "Default audio driver - sdl or jack")
 
-# Sampling rate
-set (PcmRate 48000 CACHE STRING "Sampling rate (48000 or 49716)")
-add_definitions(-DPCM_RATE=${PcmRate})
-message(STATUS "OPL3 sample rate is ${PcmRate}")
-
 # compatibility
 add_definitions(-Dstricmp=strcasecmp)
 add_definitions(-Dstrnicmp=strncasecmp)

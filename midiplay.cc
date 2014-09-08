@@ -383,8 +383,13 @@ static void TidyupAndExit(int)
  */
 class SynthLoop: public AudioGenerator
 {
+private:
+    MIDIeventhandler evh;
+    unsigned sample_rate;
 public:
-    SynthLoop():
+    SynthLoop(unsigned int sample_rate):
+        evh(sample_rate),
+        sample_rate(sample_rate),
         player(&evh),
         delay(0)
     {
@@ -403,13 +408,11 @@ public:
             evh.Update(&samples_out[offset*2], n_samples);
             offset += n_samples;
             delay = ceil(player.Tick(
-                        n_samples / (double)PCM_RATE,
-                        1.0 / (double)PCM_RATE) * (double)PCM_RATE);
+                        n_samples / (double)sample_rate,
+                        1.0 / (double)sample_rate) * (double)sample_rate);
         }
     }
     MIDIplay player;
-private:
-    MIDIeventhandler evh;
     /** Delay until next event */
     unsigned long delay;
 };
@@ -431,10 +434,11 @@ int main(int argc, char** argv)
     if(rv >= 0)
         return rv;
 
-    InitializeAudio(AudioBufferLength);
+    unsigned int sample_rate = 0;
+    InitializeAudio(AudioBufferLength, &sample_rate);
 
     UI.StartGrid();
-    SynthLoop audio_gen;
+    SynthLoop audio_gen(sample_rate);
     if(!audio_gen.player.LoadMIDI(argv[1]))
         return 2;
     StartAudio(&audio_gen, NULL);

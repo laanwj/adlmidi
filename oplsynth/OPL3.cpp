@@ -51,7 +51,11 @@
 #include "opl.h"
 #include "xs_Float.h"
 
+#define OPL_MAX_SAMPLE_RATE     96000
 #define VOLUME_MUL		0.3333
+
+// TODO this should not be a global
+unsigned int OPL_SAMPLE_RATE;
 
 class Operator;
 
@@ -333,11 +337,14 @@ public:
 	// The OPL3 tremolo repetition rate is 3.7 Hz.  
 	#define tremoloFrequency (3.7)
 
-	static const int tremoloTableLength = (int)(OPL_SAMPLE_RATE/tremoloFrequency);
+	static const int tremoloTableMaxLength = (int)(OPL_MAX_SAMPLE_RATE/tremoloFrequency);
 	static const int vibratoTableLength = 8192;
 
-	OPL3DataStruct()
+	int tremoloTableLength;
+	OPL3DataStruct(unsigned int sample_freq)
 	{
+                OPL_SAMPLE_RATE = sample_freq;
+                tremoloTableLength = (int)(OPL_SAMPLE_RATE/tremoloFrequency);
 		loadVibratoTable();
 		loadTremoloTable();
 	}
@@ -346,7 +353,7 @@ public:
 	double vibratoTable[2][vibratoTableLength];
 
 	// First array used when AM = 0 and second array used when AM = 1.
-	double tremoloTable[2][tremoloTableLength];
+	double tremoloTable[2][tremoloTableMaxLength];
 
 	static double calculateIncrement(double begin, double end, double period) {
 		return (end-begin)/OPL_SAMPLE_RATE * (1/period);
@@ -565,7 +572,7 @@ public:
 	//void read(float output[2]);
 	void write(int array, int address, int data);
 
-	OPL3(bool fullpan);
+	OPL3(unsigned int sample_rate, bool fullpan);
 	~OPL3();
 	
 private:
@@ -618,7 +625,7 @@ void OPL3::Update(float *output, int numsamples) {
 		// Advances the OPL3-wide tremolo index, which is used by 
 		// EnvelopeGenerator.getEnvelope() in each Operator.
 		tremoloIndex++;
-		if(tremoloIndex >= OPL3DataStruct::tremoloTableLength) tremoloIndex = 0;
+		if(tremoloIndex >= OPL3Data->tremoloTableLength) tremoloIndex = 0;
 		output += 2;
 	}
 }
@@ -708,7 +715,7 @@ void OPL3::write(int array, int address, int data) {
     }
 }
 
-OPL3::OPL3(bool fullpan)
+OPL3::OPL3(unsigned sample_rate, bool fullpan)
 : tomTomTopCymbalChannel(fullpan ? CENTER_PANNING_POWER : 1, &tomTomOperator, &topCymbalOperator),
   bassDrumChannel(fullpan ? CENTER_PANNING_POWER : 1),
   highHatSnareDrumChannel(fullpan ? CENTER_PANNING_POWER : 1, &highHatOperator, &snareDrumOperator)
@@ -719,7 +726,7 @@ OPL3::OPL3(bool fullpan)
 
 	if (InstanceCount++ == 0)
 	{
-		OPL3Data = new struct OPL3DataStruct;
+		OPL3Data = new struct OPL3DataStruct(sample_rate);
 		OperatorData = new struct OperatorDataStruct;
 	}
 
@@ -1754,8 +1761,6 @@ void OPL3DataStruct::loadTremoloTable()
 		calculateIncrement(tremoloDepth[1],0,1/(2*tremoloFrequency))
 	};
 	
-	int tremoloTableLength = (int)(OPL_SAMPLE_RATE/tremoloFrequency);
-	
 	// This is undocumented. The tremolo starts at the maximum attenuation,
 	// instead of at 0 dB:
 	tremoloTable[0][0] = tremoloDepth[0];
@@ -1865,7 +1870,9 @@ void OPL3::SetPanning(int c, float left, float right)
 	}
 }
 
-OPLEmul *JavaOPLCreate(bool stereo)
+OPLEmul *JavaOPLCreate(unsigned int sample_rate, bool stereo)
 {
-	return new OPL3(stereo);
+        if(sample_rate > OPL_MAX_SAMPLE_RATE)
+            return 0;
+	return new OPL3(sample_rate, stereo);
 }

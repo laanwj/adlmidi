@@ -100,13 +100,6 @@ void InitializeAudio()
     jack_set_process_callback(client, JACK_AudioCallback, 0);
     jack_on_shutdown(client, JACK_ShutdownCallback, 0);
 
-    unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
-
-    UI.InitMessage(-1, "JACK engine sample rate: %u ", jack_rate);
-    if(jack_rate != PCM_RATE)
-        UI.InitMessage(-1, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
-    UI.InitMessage(-1, "\n");
-
     // create two ports, for stereo audio
     const char * const portnames[] = { "out_1", "out_2" };
     for(int port=0; port<2; ++port)
@@ -171,7 +164,8 @@ int main(int argc, char** argv)
     InitializeAudio();
 
     UI.StartGrid();
-    evh = new MIDIeventhandler();
+    unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
+    evh = new MIDIeventhandler(jack_rate);
     evh->Reset();
 
     /// XXX no way to quit right now

@@ -142,9 +142,10 @@ bool SamplesSmallerThan(uint32_t to, uint32_t from) { return (to - from) > 0x800
 class Clock
 {
     uint64_t start_time;
+    unsigned int sample_rate;
 public:
     /* Pass value 'ahead' (in nanos) to take audio buffer into account */
-    Clock(uint64_t ahead);
+    Clock(uint64_t ahead, unsigned int sample_rate);
     uint32_t NanosToSamples(uint64_t nanos);
     uint32_t CurrentSamples();
     /* Tell the clock what time (in samples) we're currently processing
@@ -153,14 +154,15 @@ public:
     void Sync(uint32_t cur_samples);
 };
 
-Clock::Clock(uint64_t ahead):
-    start_time(GetTimeNanos() - ahead)
+Clock::Clock(uint64_t ahead, unsigned int sample_rate):
+    start_time(GetTimeNanos() - ahead),
+    sample_rate(sample_rate)
 {
 }
 
 uint32_t Clock::NanosToSamples(uint64_t nanos)
 {
-    return (nanos - start_time) * PCM_RATE / NANOS_PER_S;
+    return (nanos - start_time) * sample_rate / NANOS_PER_S;
 }
 
 uint32_t Clock::CurrentSamples()
@@ -174,7 +176,7 @@ void Clock::Sync(uint32_t out_samples)
     int32_t difference = SamplesSignedDiff(clk_samples, out_samples);
     if(abs(difference) > 1000) /// Require a minimum threshold before adjusting to avoid jitter
     {
-        start_time += (int64_t)difference * NANOS_PER_S / PCM_RATE;
+        start_time += (int64_t)difference * NANOS_PER_S / sample_rate;
         UI.PrintLn("Clock sync correcting difference of %d samples", difference);
     }
 }
@@ -370,9 +372,10 @@ void AlsaSeqListener::Run()
 class SynthLoop: public AudioGenerator, public MIDIReceiver
 {
 public:
-    SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue):
+    SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue, unsigned int sample_rate):
         midiclock(midiclock),
         midiqueue(midiqueue),
+        evh(sample_rate),
         cur_samples(0)
     {
         evh.Reset();
@@ -440,18 +443,19 @@ int main(int argc, char** argv)
     int rv = ParseArguments(argc, argv);
     if(rv >= 0)
         return rv;
-    InitializeAudio(AudioBufferLength);
+    unsigned int sample_rate = 0;
+    InitializeAudio(AudioBufferLength, &sample_rate);
 
     Clock *midiclock;
     MidiEventQueue *midiqueue;
-    midiclock = new Clock(0);
+    midiclock = new Clock(0, sample_rate);
     midiqueue = new MidiEventQueue();
 
     AlsaSeqListener *seqin = new AlsaSeqListener(midiclock, midiqueue);
     seqin->Start();
 
     UI.StartGrid();
-    SynthLoop audio_gen(midiclock, midiqueue);
+    SynthLoop audio_gen(midiclock, midiqueue, sample_rate);
     StartAudio(&audio_gen, &audio_gen);
 
     /// XXX no way to quit right now

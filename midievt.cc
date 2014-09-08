@@ -244,7 +244,7 @@ void OPL3IF::Silence() // Silence all OPL channels.
 {
     for(unsigned c=0; c<NumChannels; ++c) { NoteOff(c); Touch_Real(c,0); }
 }
-void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
+void OPL3IF::Reset(OPLEmuType emutype, unsigned int sample_rate, bool fullpan)
 {
     Cleanup();
     cards.resize(NumCards);
@@ -258,16 +258,16 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
 	default: abort();
     }
-    UI.PrintLn("OPL emulation used: %s (fullpan %s)", emuname, fullpan?"on":"off");
+    UI.PrintLn("OPL emulation used: %s (fullpan %s), rate %i", emuname, fullpan?"on":"off", sample_rate);
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
 	switch(emutype)
 	{
-	    case OPLEMU_DBOPL: cards[a] = DBOPLCreate(fullpan); break;
-	    case OPLEMU_DBOPLv2: cards[a] = DBOPLv2Create(fullpan); break;
-	    case OPLEMU_VintageTone: cards[a] = JavaOPLCreate(fullpan); break;
-	    case OPLEMU_YMF262: cards[a] = YMF262Create(fullpan); break;
+	    case OPLEMU_DBOPL: cards[a] = DBOPLCreate(sample_rate, fullpan); break;
+	    case OPLEMU_DBOPLv2: cards[a] = DBOPLv2Create(sample_rate, fullpan); break;
+	    case OPLEMU_VintageTone: cards[a] = JavaOPLCreate(sample_rate, fullpan); break;
+	    case OPLEMU_YMF262: cards[a] = YMF262Create(sample_rate, fullpan); break;
 	    default: abort();
 	}
     }
@@ -1227,7 +1227,7 @@ void MIDIeventhandler::HandleEvent(int port, const unsigned char *data, unsigned
 
 void MIDIeventhandler::Reset()
 {
-    opl.Reset(EmuType, FullPan); // Reset AdLib
+    opl.Reset(EmuType, sample_rate, FullPan); // Reset AdLib
     ch.clear();
     ch.resize(opl.NumChannels);
     Ch.clear();
@@ -1254,5 +1254,11 @@ void MIDIeventhandler::SetNumPorts(int ports)
 void MIDIeventhandler::Update(float *buffer, int length)
 {
     opl.Update(buffer, length);
-    Tick(length / (double)PCM_RATE);
+    Tick(length / (double)sample_rate);
 }
+
+MIDIeventhandler::MIDIeventhandler(unsigned int sample_rate):
+    sample_rate(sample_rate)
+{
+}
+

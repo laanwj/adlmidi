@@ -31,7 +31,7 @@ public:
 /** Initialize audio system, in paused state,
  * create a buffer of AudioBufferLength seconds.
  */
-void InitializeAudio(double AudioBufferLength);
+void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate);
 /** Start audio playing from audio generator gen */
 void StartAudio(AudioGenerator *gen, MIDIReceiver *midi);
 /** Shutdown audio system */

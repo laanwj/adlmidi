@@ -1575,10 +1575,11 @@ class DBOPLv2: public OPLEmul
 private:
 	Chip chip;
 	bool fullpan;
+        unsigned int sample_rate;
 public:
 	void Reset()
 	{
-		chip.Setup(OPL_SAMPLE_RATE);
+		chip.Setup(sample_rate);
 	}
 	void Update(float* sndptr, int numsamples)
 	{
@@ -1600,7 +1601,9 @@ public:
 	{
 		// TODO
 	}
-	DBOPLv2(bool fullpan): fullpan(fullpan)
+	DBOPLv2(unsigned int sample_rate, bool fullpan):
+            fullpan(fullpan),
+            sample_rate(sample_rate)
 	{
 		InitTables();
 	}
@@ -1608,7 +1611,7 @@ public:
 
 }		//Namespace DBOPL
 
-OPLEmul *DBOPLv2Create(bool fullpan)
+OPLEmul *DBOPLv2Create(unsigned int sample_rate, bool fullpan)
 {
-	return new DBOPL::DBOPLv2(fullpan);
+	return new DBOPL::DBOPLv2(sample_rate, fullpan);
 }

@@ -199,7 +199,7 @@ private:
 
 	// Enable full MIDI panning; disable OPL3 panning
 	bool FullPan;
-
+        Bit32u samplerate;
 
 	// enable an operator
 	void enable_operator(Bitu regbase, op_type* op_pt, Bit32u act_type);
@@ -225,7 +225,7 @@ public:
 	void WriteReg(int idx, int val);
 	void SetPanning(int c, float left, float right);
 
-	DBOPL(bool stereo);
+	DBOPL(Bit32u samplerate, bool stereo);
 };
 
 static Bit32u generator_add;	// should be a chip parameter

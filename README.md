@@ -54,8 +54,7 @@ This fork adds the following:
 * Slight modularization and clean-up of the code (split ui, audio output, MIDI event processor into separate files)
 * Reverb can be disabled with a command-line flag. This is mainly useful when the intent is to
   record and add effects later, but it will also use less CPU.
-* JACK audio output support. Note: with JACK it is important that the `PCM_RATE` exactly matches the sampling rate of the
-  jack server. This can currently be configured in the Makefile only and not at run time.
+* JACK audio output support. 
 * It is possible to select instruments from the full selection of banks by
   sending Bank LSB controller changes, if enabled with `-bs`.
 * CMake-based build system instead of separate makefiles.
@@ -79,7 +78,7 @@ Usage: adlmidi <midifilename> [ <options> ] [ <banknumber> [ <numcards> [ <numfo
  -s Enables scaling of modulator volumes
  -nl Quit without looping
  -w Write WAV file rather than playing
- -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ym3812, ymf262)
+ -em=<emu> Set OPL emulator to use (dbopl, dboplv2, vintage, ymf262)
  -fp Enable full stereo panning
  -bs Allow bank switch (Bank LSB changes bank)
  -noreverb Disable reverb
@@ -268,7 +267,6 @@ A few useful configuration options are:
  `BuildForAMD_X86_64`   | Build for AMD x86_64 system
  `BuildForCore2_X86_64` | Build for Intel Core2 x86_64 system
  `DefaultAudio`         | Audio driver: `sdl` or `jack`
- `PcmRate`              | Output sampling frequency (default 48000)
 
 And all the executables will be built:
 

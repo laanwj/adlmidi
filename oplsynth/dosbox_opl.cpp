@@ -467,10 +467,7 @@ void DBOPL::disable_operator(op_type* op_pt, Bit32u act_type) {
 }
 
 void DBOPL::Reset() {
-	Bit32u samplerate = (Bit32u)OPL_SAMPLE_RATE;
 	Bits i, j, oct;
-
-	int_samplerate = samplerate;
 
 	generator_add = (Bit32u)(INTFREQU*FIXEDPT/int_samplerate);
 
@@ -1434,13 +1431,14 @@ void DBOPL::SetPanning(int c, float left, float right)
 	}
 }
 
-DBOPL::DBOPL(bool fullpan)
+DBOPL::DBOPL(unsigned int sample_rate, bool fullpan):
+    int_samplerate(sample_rate)
 {
 	FullPan = fullpan;
 	Reset();
 }
 
-OPLEmul *DBOPLCreate(bool fullpan)
+OPLEmul *DBOPLCreate(unsigned int sample_rate, bool fullpan)
 {
-	return new DBOPL(fullpan);
+	return new DBOPL(sample_rate, fullpan);
 }

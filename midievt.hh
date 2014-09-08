@@ -38,7 +38,7 @@ public:
     void Patch(unsigned c, unsigned i);
     void Pan(unsigned c, unsigned value);
     void Silence();
-    void Reset(OPLEmuType emutype, bool fullpan);
+    void Reset(OPLEmuType emutype, unsigned int sample_rate, bool fullpan);
     void Update(float *buffer, int length);
 };
 
@@ -137,6 +137,7 @@ private:
     std::vector<AdlChannel> ch;
 
     OPL3IF opl;
+    unsigned int sample_rate;
     enum { Upd_Patch  = 0x1,
            Upd_Pan    = 0x2,
            Upd_Volume = 0x4,
@@ -178,6 +179,7 @@ private:
     void ChannelAfterTouch(int MidCh, int vol);
     void WheelPitchBend(int MidCh, int a, int b);
 public:
+    MIDIeventhandler(unsigned int sample_rate);
     void HandleEvent(int port, const unsigned char *data, unsigned length);
     void SetNumPorts(int channels);
     void Reset();

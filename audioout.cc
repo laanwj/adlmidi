@@ -31,6 +31,7 @@ class AudioPostprocessor;
 static AudioGenerator *audio_gen;
 static AudioPostprocessor *audio_postprocessor;
 static MIDIReceiver *midi_if;
+static unsigned int pcm_rate;
 
 AudioGenerator::~AudioGenerator()
 {
@@ -132,12 +133,12 @@ unsigned long upper_power_of_two(unsigned long v)
     return v;
 }
 
-void InitializeAudio(double AudioBufferLength)
+void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
 {
 #ifdef AUDIO_SDL
     // Set up SDL
     SDL_AudioSpec spec;
-    spec.freq     = PCM_RATE;
+    spec.freq     = 48000;
     spec.format   = AUDIO_S16SYS;
     spec.channels = 2;
     spec.samples  = upper_power_of_two(spec.freq * AudioBufferLength);
@@ -151,6 +152,7 @@ void InitializeAudio(double AudioBufferLength)
         UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
+    pcm_rate = obtained.freq;
 #endif
 #ifdef AUDIO_JACK
     jack_options_t options = JackNullOption;
@@ -173,12 +175,7 @@ void InitializeAudio(double AudioBufferLength)
     jack_set_process_callback(client, JACK_AudioCallback, 0);
     jack_on_shutdown(client, JACK_ShutdownCallback, 0);
 
-    unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
-
-    UI.InitMessage(-1, "JACK engine sample rate: %u ", jack_rate);
-    if(jack_rate != PCM_RATE)
-        UI.InitMessage(-1, "(warning: this differs from adlmidi PCM rate, %u)", (unsigned)PCM_RATE);
-    UI.InitMessage(-1, "\n");
+    pcm_rate = (unsigned int)jack_get_sample_rate(client);
 
     // create two ports, for stereo audio
     const char * const portnames[] = { "out_1", "out_2" };
@@ -224,6 +221,8 @@ void InitializeAudio(double AudioBufferLength)
     }
     jack_free(ports);
 #endif
+    if(sample_rate)
+        *sample_rate = pcm_rate;
 }
 
 /** Wrap audio_gen to provide
@@ -259,7 +258,7 @@ public:
         static unsigned amplitude_display_counter = 0;
         if(!amplitude_display_counter--)
         {
-            amplitude_display_counter = (PCM_RATE / count) / VOLUME_UPDATE_FREQ;
+            amplitude_display_counter = (pcm_rate / count) / VOLUME_UPDATE_FREQ;
             double amp[2]={0,0};
             for(unsigned w=0; w<2; ++w)
             {
@@ -389,7 +388,7 @@ static struct MyReverbData
     MyReverbData() : wetonly(false)
     {
         for(size_t i=0; i<2; ++i)
-            chan[i].Create(PCM_RATE,
+            chan[i].Create(pcm_rate,
                 6.0,  // wet_gain_dB  (-10..10)
                 .7,   // room_scale   (0..1)
                 .6,   // reverberance (0..1)

@@ -2793,7 +2793,7 @@ private:
 
 public:
 	/* Create one of virtual YM3812 */
-	YMF262(bool fullpan)
+	YMF262(unsigned int sample_rate, bool fullpan)
 	{
 		init_tables();
 
@@ -2801,8 +2801,8 @@ public:
 		memset(&Chip, 0, sizeof(Chip));
 
 		Chip.type  = OPL3_TYPE_YMF262;
-		Chip.clock = OPL_SAMPLE_RATE*8*36;
-		Chip.rate  = OPL_SAMPLE_RATE;
+		Chip.clock = sample_rate*8*36;
+		Chip.rate  = sample_rate;
 
 		/* init global tables */
 		OPL3_initalize(&Chip);
@@ -2855,8 +2855,8 @@ public:
 	}
 };
 
-OPLEmul *YMF262Create(bool fullpan)
+OPLEmul *YMF262Create(unsigned int sample_rate, bool fullpan)
 {
 	/* emulator create */
-	return new YMF262(fullpan);
+	return new YMF262(sample_rate, fullpan);
 }
