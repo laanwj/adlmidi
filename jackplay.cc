@@ -50,10 +50,9 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 
         float outbuf[MaxSamplesAtTime*2];
         jack_nframes_t n_samples = std::min(next_event - offset, (jack_nframes_t)MaxSamplesAtTime);
-        // opl.Update adds in samples, so initialize to zero
+        // Update adds in samples, so initialize to zero
         memset(outbuf, 0, n_samples*2*sizeof(float));
-        evh->opl.Update(outbuf, n_samples);
-        evh->Tick(n_samples / (double)PCM_RATE);
+        evh->Update(outbuf, n_samples);
         for(unsigned a = 0; a < n_samples; ++a)
         {
             out[0][offset + a] = outbuf[a*2+0];

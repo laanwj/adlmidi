@@ -387,7 +387,7 @@ public:
     void RequestSamples(unsigned long count, float* samples_out)
     {
         unsigned long offset = 0;
-        // opl.Update adds in samples, so initialize to zero
+        // Update adds in samples, so initialize to zero
         memset(samples_out, 0, count*2*sizeof(float));
         while(offset < count)
         {
@@ -400,8 +400,7 @@ public:
             } else {
                 //printf("current time %i, no next event\n", (int)cur_samples);
             }
-            evh.opl.Update(&samples_out[offset*2], n_samples);
-            evh.Tick(n_samples / (double)PCM_RATE);
+            evh.Update(&samples_out[offset*2], n_samples);
 
             // Process events as long as they're either now or in the past
             while(midiqueue->PeekEvent(nextEventTime))

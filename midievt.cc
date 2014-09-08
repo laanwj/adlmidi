@@ -1253,3 +1253,8 @@ void MIDIeventhandler::SetNumPorts(int ports)
         UI.IllustratePatchChange(ch, -1, -1);
 }
 
+void MIDIeventhandler::Update(float *buffer, int length)
+{
+    opl.Update(buffer, length);
+    Tick(length / (double)PCM_RATE);
+}

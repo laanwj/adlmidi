@@ -249,7 +249,6 @@ public:
             //std::fprintf(stderr, "wait = %g...\n", CurrentPosition.wait);
             ProcessEvents();
         }
-        evh->Tick(s);
         return CurrentPosition.wait;
     }
 
@@ -350,14 +349,6 @@ private:
             if(evtype == 9) current_device[tk] = ChooseDevice(data);
             if(evtype >= 1 && evtype <= 6)
                 UI.PrintLn("Meta %d: %s", evtype, data.c_str());
-
-            if(evtype == 0xE3) // Special non-spec ADLMIDI special for IMF playback: Direct poke to AdLib
-            {
-                unsigned char i = data[0], v = data[1];
-                if( (i&0xF0) == 0xC0 ) v |= 0x30;
-                //fprintf(stderr, "OPL poke %02X, %02X\n", i,v);
-                evh->opl.Poke(0, i,v);
-            }
             return;
         }
         else
@@ -403,13 +394,13 @@ public:
     void RequestSamples(unsigned long count, float* samples_out)
     {
         unsigned long offset = 0;
-        // opl.Update adds in samples, so initialize to zero
+        // Update adds in samples, so initialize to zero
         memset(samples_out, 0, count*2*sizeof(float));
         while(offset < count && !QuitFlag)
         {
             unsigned long n_samples = std::min(count - offset, std::min(delay, (unsigned long)MaxSamplesAtTime));
 
-            evh.opl.Update(&samples_out[offset*2], n_samples);
+            evh.Update(&samples_out[offset*2], n_samples);
             offset += n_samples;
             delay = ceil(player.Tick(
                         n_samples / (double)PCM_RATE,

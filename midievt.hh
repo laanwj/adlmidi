@@ -68,6 +68,7 @@ static inline unsigned MidiEventLength(unsigned char byte)
 // Process MIDI events and send them to OPL
 class MIDIeventhandler
 {
+private:
     // Persistent settings for each MIDI channel
     struct MIDIchannel
     {
@@ -134,9 +135,8 @@ class MIDIeventhandler
         void AddAge(long ms);
     };
     std::vector<AdlChannel> ch;
-public:
+
     OPL3IF opl;
-private:
     enum { Upd_Patch  = 0x1,
            Upd_Pan    = 0x2,
            Upd_Volume = 0x4,
@@ -167,6 +167,7 @@ private:
     void UpdateVibrato(double amount);
     void UpdateArpeggio(double /*amount*/);
     int GetBank(int MidCh);
+    void Tick(double s);
 
     // Specific MIDI Event handlers
     void NoteOff(unsigned MidCh, int note);
@@ -180,7 +181,7 @@ public:
     void HandleEvent(int port, const unsigned char *data, unsigned length);
     void SetNumPorts(int channels);
     void Reset();
-    void Tick(double s);
+    void Update(float *buffer, int length);
 };
 
 #endif
