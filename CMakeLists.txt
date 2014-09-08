@@ -117,7 +117,6 @@ set(adlmidi_HEADERS
     ui.hh
 )
 add_library(oplsynth STATIC
-    oplsynth/fmopl.cpp
     oplsynth/OPL3.cpp
     oplsynth/dosbox_opl.cpp
     oplsynth/dosbox_dbopl.cpp

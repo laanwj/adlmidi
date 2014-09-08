@@ -255,7 +255,6 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 	case OPLEMU_DBOPL: emuname = "Old DOSBOX"; break;
 	case OPLEMU_DBOPLv2: emuname = "New DOSBOX"; fullpan = false; break;
 	case OPLEMU_VintageTone: emuname = "'That vintage tone'"; break;
-	case OPLEMU_YM3812: emuname = "YM3812 from MAME"; break;
 	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
 	default: abort();
     }
@@ -268,7 +267,6 @@ void OPL3IF::Reset(OPLEmuType emutype, bool fullpan)
 	    case OPLEMU_DBOPL: cards[a] = DBOPLCreate(fullpan); break;
 	    case OPLEMU_DBOPLv2: cards[a] = DBOPLv2Create(fullpan); break;
 	    case OPLEMU_VintageTone: cards[a] = JavaOPLCreate(fullpan); break;
-	    case OPLEMU_YM3812: cards[a] = YM3812Create(fullpan); break;
 	    case OPLEMU_YMF262: cards[a] = YMF262Create(fullpan); break;
 	    default: abort();
 	}

@@ -87,8 +87,6 @@ int ParseArguments(int argc, char **argv)
 	        EmuType = OPLEMU_DBOPLv2;
 	    else if(!std::strcmp("vintage", emu))
 	        EmuType = OPLEMU_VintageTone;
-	    else if(!std::strcmp("ym3812", emu))
-	        EmuType = OPLEMU_YM3812;
 	    else if(!std::strcmp("ymf262", emu))
 	        EmuType = OPLEMU_YMF262;
 	    else

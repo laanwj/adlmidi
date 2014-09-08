@@ -15,7 +15,6 @@ public:
 	virtual void SetPanning(int c, float left, float right) = 0;
 };
 
-OPLEmul *YM3812Create(bool stereo);
 OPLEmul *DBOPLCreate(bool stereo);
 OPLEmul *JavaOPLCreate(bool stereo);
 OPLEmul *DBOPLv2Create(bool fullpan);
