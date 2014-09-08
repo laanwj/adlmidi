@@ -148,6 +148,9 @@ target_link_libraries(adlmidi adlmidi_shared)
 add_executable(adlseq seqplay.cc)
 target_link_libraries(adlseq adlmidi_shared ${SEQ_LIBS}) 
 
+add_executable(adljack jackplay.cc)
+target_link_libraries(adljack adlmidi_shared)
+
 add_executable(gen_adldata gen_adldata.cc)
 target_link_libraries(gen_adldata oplsynth)
 add_executable(dumpmiles dumpmiles.cc)
