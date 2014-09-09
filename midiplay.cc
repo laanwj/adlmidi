@@ -21,6 +21,7 @@
 #include <vector>
 
 volatile sig_atomic_t QuitFlag = false;
+volatile int ExitSignal = 0;
 unsigned SkipForward = 0;
 
 // Read midi file and play back events
@@ -373,9 +374,10 @@ private:
     }
 };
 
-static void TidyupAndExit(int)
+static void TidyupAndExit(int signal)
 {
     QuitFlag = true;
+    ExitSignal = signal;
 }
 
 /** Synthesize samples from midi file.
@@ -448,6 +450,11 @@ int main(int argc, char** argv)
 
     ShutdownAudio();
     delete ui; ui = 0;
+
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    if(ExitSignal)
+        raise(ExitSignal);
 
     return 0;
 }

@@ -17,6 +17,7 @@
 #include <jack/midiport.h>
 
 static volatile sig_atomic_t QuitFlag = false;
+volatile int ExitSignal = 0;
 static MIDIeventhandler *evh;
 static jack_port_t *output_port[2];
 static jack_port_t *midi_port;
@@ -70,9 +71,10 @@ static void JACK_ShutdownCallback(void *)
 {
     QuitFlag = true;
 }
-static void TidyupAndExit(int)
+static void TidyupAndExit(int signal)
 {
     QuitFlag = true;
+    ExitSignal = signal;
 }
 
 void InitializeAudio()
@@ -173,5 +175,10 @@ int main(int argc, char** argv)
     ShutdownAudio();
 
     delete ui; ui = 0;
+
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    if(ExitSignal)
+        raise(ExitSignal);
     return 0;
 }

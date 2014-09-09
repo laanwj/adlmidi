@@ -22,15 +22,17 @@
 #include <alsa/asoundlib.h>
 
 static volatile sig_atomic_t QuitFlag = false;
+volatile int ExitSignal = 0;
 const uint64_t NANOS_PER_S = 1000000000LL;
 
 // Add this number of samples to time for new midi events to make sure that
 // events arrive in the future so to preserve relative timing.
 static const int MIDI_DELAY_FRAMES = 2000;
 
-static void TidyupAndExit(int)
+static void TidyupAndExit(int signal)
 {
     QuitFlag = true;
+    ExitSignal = signal;
 }
 
 class MidiEventQueue
@@ -475,5 +477,10 @@ int main(int argc, char** argv)
     midiqueue = 0;
     delete ui;
     ui = 0;
+
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    if(ExitSignal)
+        raise(ExitSignal);
     return 0;
 }
