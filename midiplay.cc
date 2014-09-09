@@ -26,6 +26,7 @@ unsigned SkipForward = 0;
 // Read midi file and play back events
 class MIDIplay
 {
+private:
     std::map<std::string, unsigned> devices;
     // Information about each track
     struct Position
@@ -47,16 +48,17 @@ class MIDIplay
 
     std::vector< std::vector<unsigned char> > TrackData;
     std::map<unsigned/*track*/, unsigned/*port index*/> current_device;
-public:
-    explicit MIDIplay(MIDIeventhandler *evh):
-        evh(evh)
-    {
-    }
 
     fraction<long> InvDeltaTicks, Tempo;
     bool loopStart, loopEnd;
     MIDIeventhandler *evh;
+    UIInterface *ui;
 public:
+    explicit MIDIplay(MIDIeventhandler *evh, UIInterface *ui):
+        evh(evh), ui(ui)
+    {
+    }
+
     static unsigned long ReadBEInt(const void* buffer, unsigned nbytes)
     {
         unsigned long result=0;
@@ -134,7 +136,7 @@ public:
                 if(std::memcmp(HeaderBuf, "MThd\0\0\0\6", 8) != 0)
                 { InvFmt:
                     std::fclose(fp);
-                    UI.InitMessage(12, "%s: Invalid format\n", filename.c_str());
+                    InitMessage(12, "%s: Invalid format\n", filename.c_str());
                     return false;
                 }
                 /*size_t  Fmt =*/ ReadBEInt(HeaderBuf+8,  2);
@@ -292,7 +294,7 @@ private:
             {
                 shortest = CurrentPosition.track[tk].delay;
             }
-        //if(shortest > 0) UI.PrintLn("shortest: %ld", shortest);
+        //if(shortest > 0) ui->PrintLn("shortest: %ld", shortest);
 
         // Schedule the next playevent to be processed after that delay
         for(size_t tk=0; tk<TrackCount; ++tk)
@@ -301,7 +303,7 @@ private:
         fraction<long> t = shortest * Tempo;
         if(CurrentPosition.began) CurrentPosition.wait += t.valuel();
 
-        //if(shortest > 0) UI.PrintLn("Delay %ld (%g)", shortest, (double)t.valuel());
+        //if(shortest > 0) ui->PrintLn("Delay %ld (%g)", shortest, (double)t.valuel());
 
         /*
         if(CurrentPosition.track[0].ptr > 8119) loopEnd = true;
@@ -348,7 +350,7 @@ private:
             if(evtype == 6 && data == "loopEnd"  ) loopEnd   = true;
             if(evtype == 9) current_device[tk] = ChooseDevice(data);
             if(evtype >= 1 && evtype <= 6)
-                UI.PrintLn("Meta %d: %s", evtype, data.c_str());
+                ui->PrintLn("Meta %d: %s", evtype, data.c_str());
             return;
         }
         else
@@ -373,10 +375,7 @@ private:
 
 static void TidyupAndExit(int)
 {
-    UI.Cleanup();
-    std::fflush(stderr);
-    signal(SIGINT, SIG_DFL);
-    raise(SIGINT);
+    QuitFlag = true;
 }
 
 /** Synthesize samples from midi file.
@@ -387,10 +386,10 @@ private:
     MIDIeventhandler evh;
     unsigned sample_rate;
 public:
-    SynthLoop(unsigned int sample_rate):
-        evh(sample_rate),
+    SynthLoop(unsigned int sample_rate, UIInterface *ui):
+        evh(sample_rate, ui),
         sample_rate(sample_rate),
-        player(&evh),
+        player(&evh, ui),
         delay(0)
     {
     }
@@ -424,8 +423,8 @@ int main(int argc, char** argv)
     // is called.
     const double AudioBufferLength = 0.045;
 
-    UI.InitMessage(15, "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n");
-    UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
+    InitMessage(15, "ADLMIDI: MIDI player for Linux and Windows with OPL3 emulation\n");
+    InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -437,18 +436,18 @@ int main(int argc, char** argv)
     unsigned int sample_rate = 0;
     InitializeAudio(AudioBufferLength, &sample_rate);
 
-    UI.StartGrid();
-    SynthLoop audio_gen(sample_rate);
+    UI *ui = new UI();
+    SynthLoop audio_gen(sample_rate, ui);
     if(!audio_gen.player.LoadMIDI(argv[1]))
         return 2;
-    StartAudio(&audio_gen, NULL);
+    StartAudio(&audio_gen, NULL, ui);
 
     /// XXX need condition for when to quit
     while(!QuitFlag)
         sleep(1);
 
     ShutdownAudio();
-    UI.Cleanup();
+    delete ui; ui = 0;
 
     return 0;
 }

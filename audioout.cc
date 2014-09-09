@@ -101,8 +101,6 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 }
 static void JACK_ShutdownCallback(void *)
 {
-    UI.Cleanup();
-    exit(1);
 }
 #endif // AUDIO_JACK
 
@@ -145,11 +143,11 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
     spec.callback = SDL_AudioCallback;
     if(SDL_OpenAudio(&spec, &obtained) < 0)
     {
-        UI.InitMessage(-1, "Couldn't open audio: %s\n", SDL_GetError());
+        InitMessage(-1, "Couldn't open audio: %s\n", SDL_GetError());
         //return 1;
     }
     if(spec.samples != obtained.samples)
-        UI.InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
+        InitMessage(-1, "Wanted (samples=%u,rate=%u,channels=%u); obtained (samples=%u,rate=%u,channels=%u)\n",
             spec.samples,    spec.freq,    spec.channels,
             obtained.samples,obtained.freq,obtained.channels);
     pcm_rate = obtained.freq;
@@ -160,17 +158,17 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
     const char *server_name = NULL;
     const char **ports;
     if ((client = jack_client_open("adlmidi", options, &status, server_name)) == 0) {
-        UI.InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
+        InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
         if (status & JackServerFailed) {
-            UI.InitMessage(-1, "Unable to connect to JACK server\n");
+            InitMessage(-1, "Unable to connect to JACK server\n");
         }
         exit(1);
     }
     if (status & JackServerStarted) {
-        UI.InitMessage(-1, "JACK server started\n");
+        InitMessage(-1, "JACK server started\n");
     }
     if (status & JackNameNotUnique) {
-        UI.InitMessage(-1, "unique name `%s' assigned\n", jack_get_client_name(client));
+        InitMessage(-1, "unique name `%s' assigned\n", jack_get_client_name(client));
     }
     jack_set_process_callback(client, JACK_AudioCallback, 0);
     jack_on_shutdown(client, JACK_ShutdownCallback, 0);
@@ -186,7 +184,7 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
                                          JACK_DEFAULT_AUDIO_TYPE,
                                          JackPortIsOutput, 0);
         if (output_port[port] == NULL) {
-            UI.InitMessage(-1, "no more JACK ports available\n");
+            InitMessage(-1, "no more JACK ports available\n");
             exit(1);
         }
     }
@@ -197,26 +195,26 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
                                          JACK_DEFAULT_MIDI_TYPE,
                                          JackPortIsInput, 0);
         if (midi_port[port] == NULL) {
-            UI.InitMessage(-1, "no more JACK midi ports available\n");
+            InitMessage(-1, "no more JACK midi ports available\n");
             exit(1);
         }
     }
 
     if (jack_activate(client)) {
-        UI.InitMessage(-1, "JACK: cannot activate client\n");
+        InitMessage(-1, "JACK: cannot activate client\n");
         exit(1);
     }
 
     ports = jack_get_ports(client, NULL, NULL,
                            JackPortIsPhysical|JackPortIsInput);
     if (ports == NULL) {
-        UI.InitMessage(-1, "JACK: no physical playback ports\n");
+        InitMessage(-1, "JACK: no physical playback ports\n");
     }
 
     for(int port=0; port<2; ++port)
     {
         if (jack_connect(client, jack_port_name(output_port[port]), ports[port])) {
-            UI.InitMessage(-1, "JACK: cannot connect output ports\n");
+            InitMessage(-1, "JACK: cannot connect output ports\n");
         }
     }
     jack_free(ports);
@@ -233,8 +231,8 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
 class AudioPostprocessor: public AudioGenerator
 {
 public:
-    AudioPostprocessor(AudioGenerator *source):
-        source(source)
+    AudioPostprocessor(AudioGenerator *source, UIInterface *ui):
+        source(source), ui(ui)
     {
     }
     void RequestSamples(unsigned long count, float* samples)
@@ -271,7 +269,7 @@ public:
                 const double maxdB = 3*16; // = 3 * log2(65536)
                 amp[w] = dB/maxdB;
             }
-            UI.IllustrateVolumes(amp[0], amp[1]);
+            ui->IllustrateVolumes(amp[0], amp[1]);
         }
 
         if(EnableReverb)
@@ -284,11 +282,12 @@ public:
 
 private:
     AudioGenerator *source;
+    UIInterface *ui;
 };
 
-void StartAudio(AudioGenerator *gen, MIDIReceiver *midi)
+void StartAudio(AudioGenerator *gen, MIDIReceiver *midi, UIInterface *ui)
 {
-    audio_postprocessor = new AudioPostprocessor(gen);
+    audio_postprocessor = new AudioPostprocessor(gen, ui);
     audio_gen = audio_postprocessor;
     midi_if = midi;
 }

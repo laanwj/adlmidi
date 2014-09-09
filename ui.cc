@@ -27,13 +27,14 @@ static const char MIDIsymbols[256+1] =
 
 #include "midi_symbols_256.hh"
 
+UIInterface::~UIInterface() { }
+
 class UnixTerminalConsoleInterface: public ConsoleInterface
 {
 public:
     UnixTerminalConsoleInterface():
       x(0), y(0), color(-1),
-      maxy(0), cursor_visible(true),
-      screen_mode(false)
+      maxy(0), cursor_visible(true)
     {
         std::memset(slots, '.',      sizeof(slots));
     }
@@ -45,21 +46,8 @@ public:
         std::fflush(stderr);
     }
 
-    void InitMessage(int color, const char *message, int nchars)
-    {
-        if(screen_mode)
-            return;
-        if(color != -1)
-            Color(color);
-        std::fwrite(message, nchars, 1, stderr);
-        std::fputs("\33[0m", stderr);
-        std::fflush(stderr);
-    }
-
     void CreateGrid(int width, int height, int *out_width, int *out_height)
     {
-        screen_mode = true;
-
         std::fputc('\r', stderr); // Ensure cursor is at x=0
         GotoXY(0,0); Color(15);
         std::fputs("Hit Ctrl-C to quit\r", stderr);
@@ -93,7 +81,6 @@ private:
     char slots[MaxWidth][MaxHeight];
     unsigned char slotcolors[MaxWidth][MaxHeight];
     bool cursor_visible;
-    bool screen_mode;
 
     void HideCursor()
     {
@@ -158,8 +145,6 @@ private:
 
 ConsoleInterface::~ConsoleInterface() {}
 
-extern ConsoleInterface *CreateQtConsole();
-
 UI::UI():
     width(0), height(0),
     txtline(1)
@@ -167,13 +152,20 @@ UI::UI():
     std::memset(background, '.', sizeof(background));
     std::memset(foreground, '.', sizeof(foreground));
     console = new UnixTerminalConsoleInterface();
-    //console = CreateQtConsole();
     for(unsigned ch=0; ch<MaxHeight; ++ch)
     {
         curpatch[ch] = -1;
         curins[ch] = -1;
     }
+
+    int req_lines;
+    if(AdlPercussionMode)
+        req_lines = std::min(2u, NumCards) * 23;
+    else
+        req_lines = std::min(3u, NumCards) * 18;
+    console->CreateGrid(MaxWidth, req_lines, &width, &height);
 }
+
 UI::~UI()
 {
     delete console;
@@ -211,29 +203,19 @@ void UI::PrintLn(const char* fmt, ...)
     txtline=(1 + txtline) % height;
 }
 
-void UI::InitMessage(int color, const char *fmt, ...)
+void InitMessage(int color, const char *fmt, ...)
 {
     va_list ap;
+    if(color != -1)
+    {
+        static const char map[16] = {0,17,2,6,1,5,3,7,24,12,10,14,9,13,11,15};
+        std::fprintf(stderr, "\33[0;38;5;%im", map[color]);
+    }
     va_start(ap, fmt);
-    char Line[512];
-  #ifndef __CYGWIN__
-    int nchars = vsnprintf(Line, sizeof(Line), fmt, ap);
-  #else
-    int nchars = std::vsprintf(Line, fmt, ap); /* SECURITY: POSSIBLE BUFFER OVERFLOW */
-  #endif
+    vfprintf(stderr, fmt, ap);
     va_end(ap);
-
-    console->InitMessage(color, Line, nchars);
-}
-
-void UI::StartGrid()
-{
-    int req_lines;
-    if(AdlPercussionMode)
-        req_lines = std::min(2u, NumCards) * 23;
-    else
-        req_lines = std::min(3u, NumCards) * 18;
-    console->CreateGrid(MaxWidth, req_lines, &width, &height);
+    std::fputs("\33[0m", stderr);
+    std::fflush(stderr);
 }
 
 void UI::IllustrateNote(int adlchn, int note, int ins, int pressure, double bend)
@@ -363,12 +345,4 @@ int UI::AllocateColor(int ins)
     }
 #endif
 }
-
-void UI::Cleanup()
-{
-    delete console;
-    console = 0;
-}
-
-class UI UI;
 

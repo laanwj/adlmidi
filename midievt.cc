@@ -92,6 +92,11 @@ static const unsigned short Channels[23] =
 
 */
 
+OPL3IF::OPL3IF(UIInterface *ui):
+    ui(ui)
+{
+}
+
 OPL3IF::~OPL3IF()
 {
     Cleanup();
@@ -258,7 +263,7 @@ void OPL3IF::Reset(OPLEmuType emutype, unsigned int sample_rate, bool fullpan)
 	case OPLEMU_YMF262: emuname = "YMF262 from MAME"; fullpan = false; break;
 	default: abort();
     }
-    UI.PrintLn("OPL emulation used: %s (fullpan %s), rate %i", emuname, fullpan?"on":"off", sample_rate);
+    ui->PrintLn("OPL emulation used: %s (fullpan %s), rate %i", emuname, fullpan?"on":"off", sample_rate);
     this->fullpan = fullpan;
     for(unsigned a=0; a<NumCards; ++a)
     {
@@ -300,7 +305,7 @@ void OPL3IF::Reset(OPLEmuType emutype, unsigned int sample_rate, bool fullpan)
                                        + AdlPercussionMode*0x20) );
         unsigned fours_this_card = std::min(fours, 6u);
         Poke(card, 0x104, (1 << fours_this_card) - 1);
-        //UI.PrintLn("Card %u: %u four-ops.", card, fours_this_card);
+        //ui->PrintLn("Card %u: %u four-ops.", card, fours_this_card);
         fours -= fours_this_card;
     }
 
@@ -327,10 +332,10 @@ void OPL3IF::Reset(OPLEmuType emutype, unsigned int sample_rate, bool fullpan)
     }
 
     /**/
-    UI.PrintLn("Channels used as:");
+    ui->PrintLn("Channels used as:");
     for(size_t a=0; a<four_op_category.size(); a += 23)
     {
-        UI.PrintLn(" %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+        ui->PrintLn(" %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
             four_op_category[a+0], four_op_category[a+1], four_op_category[a+2], four_op_category[a+3], four_op_category[a+4],
             four_op_category[a+5], four_op_category[a+6], four_op_category[a+7], four_op_category[a+8], four_op_category[a+9],
             four_op_category[a+10], four_op_category[a+11], four_op_category[a+12], four_op_category[a+13], four_op_category[a+14],
@@ -465,7 +470,7 @@ void MIDIeventhandler::NoteUpdate
                 AdlChannel::users_t::iterator k = ch[c].users.find(my_loc);
                 if(k != ch[c].users.end())
                     ch[c].users.erase(k);
-                UI.IllustrateNote(c, tone, midiins, 0, 0.0);
+                ui->IllustrateNote(c, tone, midiins, 0, 0.0);
 
                 if(ch[c].users.empty())
                 {
@@ -480,7 +485,7 @@ void MIDIeventhandler::NoteUpdate
                 //          Also will avoid overwriting it very soon.
                 AdlChannel::LocationData& d = ch[c].users[my_loc];
                 d.sustained = true; // note: not erased!
-                UI.IllustrateNote(c, tone, midiins, -1, 0.0);
+                ui->IllustrateNote(c, tone, midiins, -1, 0.0);
             }
             info.phys.erase(j);
             continue;
@@ -519,7 +524,7 @@ void MIDIeventhandler::NoteUpdate
                 if(Ch[MidCh].vibrato && d.vibdelay >= Ch[MidCh].vibdelay)
                     bend += Ch[MidCh].vibrato * Ch[MidCh].vibdepth * std::sin(Ch[MidCh].vibpos);
                 opl.NoteOn(c, 172.00093 * std::exp(0.057762265 * (tone + bend + phase)));
-                UI.IllustrateNote(c, tone, midiins, vol, Ch[MidCh].bend);
+                ui->IllustrateNote(c, tone, midiins, vol, Ch[MidCh].bend);
             }
         }
     }
@@ -670,11 +675,11 @@ void MIDIeventhandler::KillOrEvacuate(
             if(m->second.ins != j->second.ins) continue;
 
             // the note can be moved here!
-            UI.IllustrateNote(
+            ui->IllustrateNote(
                 from_channel,
                 i->second.tone,
                 i->second.midiins, 0, 0.0);
-            UI.IllustrateNote(
+            ui->IllustrateNote(
                 c,
                 i->second.tone,
                 i->second.midiins,
@@ -689,7 +694,7 @@ void MIDIeventhandler::KillOrEvacuate(
         }
     }
 
-    /*UI.PrintLn(
+    /*ui->PrintLn(
         "collision @%u: [%ld] <- ins[%3u]",
         c,
         //ch[c].midiins<128?'M':'P', ch[c].midiins&127,
@@ -721,7 +726,7 @@ void MIDIeventhandler::KillSustainingNotes(int MidCh, int this_adlchn)
             && j->second.sustained)
             {
                 int midiins = '?';
-                UI.IllustrateNote(c, j->first.note, midiins, 0, 0.0);
+                ui->IllustrateNote(c, j->first.note, midiins, 0, 0.0);
                 ch[c].users.erase(j);
             }
         }
@@ -757,7 +762,7 @@ void MIDIeventhandler::SetRPN(unsigned MidCh, unsigned value, bool MSB)
                 value ? long(0.2092 * std::exp(0.0795 * value)) : 0.0;
             break;
 
-        default: UI.PrintLn("%s %04X <- %d (%cSB) (ch %u)",
+        default: ui->PrintLn("%s %04X <- %d (%cSB) (ch %u)",
             "NRPN"+!nrpn, addr, value, "LM"[MSB], MidCh);
     }
 }
@@ -770,7 +775,7 @@ void MIDIeventhandler::UpdatePortamento(unsigned MidCh)
     NoteUpdate_All(MidCh, Upd_Pitch);
     */
     if(Ch[MidCh].portamento)
-        UI.PrintLn("Portamento %u: %u (unimplemented)", MidCh, Ch[MidCh].portamento);
+        ui->PrintLn("Portamento %u: %u (unimplemented)", MidCh, Ch[MidCh].portamento);
 }
 
 void MIDIeventhandler::NoteUpdate_All(unsigned MidCh, unsigned props_mask)
@@ -823,14 +828,6 @@ void MIDIeventhandler::UpdateArpeggio(double /*amount*/) // amount = amount of t
     {
     retry_arpeggio:;
         size_t n_users = ch[c].users.size();
-        /*if(true)
-        {
-            UI.GotoXY(64,c+1); UI.Color(2);
-            UI.InitMessage(-1, "%7ld/%7ld,%3u\r",
-                ch[c].keyoff,
-                (unsigned) n_users);
-            UI.x = 0;
-        }*/
         if(n_users > 1)
         {
             AdlChannel::users_t::const_iterator i = ch[c].users.begin();
@@ -882,7 +879,7 @@ int MIDIeventhandler::GetBank(int MidCh)
                 i = bank_warnings.lower_bound(bankid);
             if(i == bank_warnings.end() || *i != bankid)
             {
-                UI.PrintLn("[%u]Bank %u undefined",
+                ui->PrintLn("[%u]Bank %u undefined",
                     MidCh,
                     Ch[MidCh].bank_msb);
                 bank_warnings.insert(i, bankid);
@@ -895,7 +892,7 @@ int MIDIeventhandler::GetBank(int MidCh)
                 i = bank_warnings.lower_bound(bankid);
             if(i == bank_warnings.end() || *i != bankid)
             {
-                UI.PrintLn("[%u]Bank lsb %u undefined",
+                ui->PrintLn("[%u]Bank lsb %u undefined",
                     MidCh,
                     Ch[MidCh].bank_lsb);
                 bank_warnings.insert(i, bankid);
@@ -935,7 +932,7 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
     int bank = GetBank(MidCh);
     int meta = banks[bank][midiins];
     int tone = note;
-    UI.IllustratePatchChange(MidCh, midiins, meta);
+    ui->IllustratePatchChange(MidCh, midiins, meta);
     if(adlins[meta].tone)
     {
         if(adlins[meta].tone < 20)
@@ -953,7 +950,7 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
     static std::set<unsigned char> missing_warnings;
     if(!missing_warnings.count(midiins) && (adlins[meta].flags & adlinsdata::Flag_NoSound))
     {
-        UI.PrintLn("[%i]Playing missing instrument %i", MidCh, midiins);
+        ui->PrintLn("[%i]Playing missing instrument %i", MidCh, midiins);
         missing_warnings.insert(midiins);
     }
 
@@ -1005,7 +1002,7 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
 
         if(c < 0)
         {
-            //UI.PrintLn("ignored unplaceable note");
+            //ui->PrintLn("ignored unplaceable note");
             continue; // Could not play this note. Ignore it.
         }
         PrepareAdlChannelForNewNote(c, i[ccount]);
@@ -1016,7 +1013,7 @@ void MIDIeventhandler::NoteOn(int MidCh, int note, int vol)
         // The note could not be played, at all.
         return;
     }
-    //UI.PrintLn("i1=%d:%d, i2=%d:%d", i[0],adlchannel[0], i[1],adlchannel[1]);
+    //ui->PrintLn("i1=%d:%d, i2=%d:%d", i[0],adlchannel[0], i[1],adlchannel[1]);
 
     // Allocate active note for MIDI channel
     std::pair<MIDIchannel::activenoteiterator,bool>
@@ -1053,7 +1050,7 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
     switch(ctrlno)
     {
         case 1: // Adjust vibrato
-            //UI.PrintLn("%u:vibrato %d", MidCh,value);
+            //ui->PrintLn("%u:vibrato %d", MidCh,value);
             Ch[MidCh].vibrato = value; break;
         case 0: // Set bank msb (GM bank)
             Ch[MidCh].bank_msb = value;
@@ -1062,9 +1059,9 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
             if(AllowBankSwitch)
             {
                 if(value >= 0 && value < (int)NumBanks)
-                    UI.PrintLn("[%u] Using bank %d '%s'", MidCh, value, banknames[value]);
+                    ui->PrintLn("[%u] Using bank %d '%s'", MidCh, value, banknames[value]);
                 else
-                    UI.PrintLn("[%u] Using undefined bank %d", MidCh, value);
+                    ui->PrintLn("[%u] Using undefined bank %d", MidCh, value);
             }
             Ch[MidCh].bank_lsb = value;
             break;
@@ -1132,7 +1129,7 @@ void MIDIeventhandler::ControllerChange(int MidCh, int ctrlno, int value)
         case  6: SetRPN(MidCh, value, true); break;
         case 38: SetRPN(MidCh, value, false); break;
         default:
-            UI.PrintLn("Ctrl %d <- %d (ch %u)", ctrlno, value, MidCh);
+            ui->PrintLn("Ctrl %d <- %d (ch %u)", ctrlno, value, MidCh);
     }
 }
 
@@ -1140,7 +1137,7 @@ void MIDIeventhandler::PatchChange(int MidCh, int patch)
 {
     int bank = GetBank(MidCh);
     Ch[MidCh].patch = patch;
-    UI.IllustratePatchChange(MidCh, patch, banks[bank][patch]);
+    ui->IllustratePatchChange(MidCh, patch, banks[bank][patch]);
 }
 
 void MIDIeventhandler::ChannelAfterTouch(int MidCh, int vol)
@@ -1170,7 +1167,7 @@ void MIDIeventhandler::HandleEvent(int port, const unsigned char *data, unsigned
     unsigned byte = data[0];
     if(byte == 0xF7 || byte == 0xF0) // Ignore SysEx
     {
-        UI.PrintLn("SysEx %02X: %u bytes", byte, length);
+        ui->PrintLn("SysEx %02X: %u bytes", byte, length);
         return;
     }
     unsigned MidCh = port * 16 + (byte & 0x0F), EvType = byte >> 4;
@@ -1248,7 +1245,7 @@ void MIDIeventhandler::SetNumPorts(int ports)
     size_t ch = Ch.size();
     Ch.resize(ports * 16);
     for(; ch<Ch.size(); ++ch)
-        UI.IllustratePatchChange(ch, -1, -1);
+        ui->IllustratePatchChange(ch, -1, -1);
 }
 
 void MIDIeventhandler::Update(float *buffer, int length)
@@ -1257,8 +1254,8 @@ void MIDIeventhandler::Update(float *buffer, int length)
     Tick(length / (double)sample_rate);
 }
 
-MIDIeventhandler::MIDIeventhandler(unsigned int sample_rate):
-    sample_rate(sample_rate)
+MIDIeventhandler::MIDIeventhandler(unsigned int sample_rate, UIInterface *ui):
+    sample_rate(sample_rate), ui(ui), opl(ui)
 {
 }
 

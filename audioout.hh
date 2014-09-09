@@ -28,12 +28,14 @@ public:
     virtual void PushEvent(uint32_t timestamp, int port, const unsigned char *data, unsigned length) = 0;
 };
 
+class UIInterface;
+
 /** Initialize audio system, in paused state,
  * create a buffer of AudioBufferLength seconds.
  */
 void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate);
 /** Start audio playing from audio generator gen */
-void StartAudio(AudioGenerator *gen, MIDIReceiver *midi);
+void StartAudio(AudioGenerator *gen, MIDIReceiver *midi, UIInterface *ui);
 /** Shutdown audio system */
 void ShutdownAudio();
 

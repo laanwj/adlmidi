@@ -30,9 +30,7 @@ static const int MIDI_DELAY_FRAMES = 2000;
 
 static void TidyupAndExit(int)
 {
-    UI.Cleanup();
-    signal(SIGINT, SIG_DFL);
-    raise(SIGINT);
+    QuitFlag = true;
 }
 
 class MidiEventQueue
@@ -141,11 +139,12 @@ bool SamplesSmallerThan(uint32_t to, uint32_t from) { return (to - from) > 0x800
 
 class Clock
 {
+    UI *ui;
     uint64_t start_time;
     unsigned int sample_rate;
 public:
     /* Pass value 'ahead' (in nanos) to take audio buffer into account */
-    Clock(uint64_t ahead, unsigned int sample_rate);
+    Clock(uint64_t ahead, unsigned int sample_rate, UI *ui);
     uint32_t NanosToSamples(uint64_t nanos);
     uint32_t CurrentSamples();
     /* Tell the clock what time (in samples) we're currently processing
@@ -154,7 +153,8 @@ public:
     void Sync(uint32_t cur_samples);
 };
 
-Clock::Clock(uint64_t ahead, unsigned int sample_rate):
+Clock::Clock(uint64_t ahead, unsigned int sample_rate, UI *ui):
+    ui(ui),
     start_time(GetTimeNanos() - ahead),
     sample_rate(sample_rate)
 {
@@ -177,7 +177,7 @@ void Clock::Sync(uint32_t out_samples)
     if(abs(difference) > 1000) /// Require a minimum threshold before adjusting to avoid jitter
     {
         start_time += (int64_t)difference * NANOS_PER_S / sample_rate;
-        UI.PrintLn("Clock sync correcting difference of %d samples", difference);
+        ui->PrintLn("Clock sync correcting difference of %d samples", difference);
     }
 }
 
@@ -327,7 +327,7 @@ void AlsaSeqListener::Start()
     create_port();
     err = snd_seq_nonblock(seq, 1);
     check_snd("set nonblock mode", err);
-    UI.InitMessage(-1, "Waiting for data at port %d:0.\n",
+    InitMessage(-1, "Waiting for data at port %d:0.\n",
            snd_seq_client_id(seq));
 
     alsa_thread = SDL_CreateThread(AlsaThread, this);
@@ -372,11 +372,12 @@ void AlsaSeqListener::Run()
 class SynthLoop: public AudioGenerator, public MIDIReceiver
 {
 public:
-    SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue, unsigned int sample_rate):
+    SynthLoop(Clock *midiclock, MidiEventQueue *midiqueue, unsigned int sample_rate, UI *ui):
         midiclock(midiclock),
         midiqueue(midiqueue),
-        evh(sample_rate),
-        cur_samples(0)
+        evh(sample_rate, ui),
+        cur_samples(0),
+        ui(ui)
     {
         evh.Reset();
     }
@@ -409,7 +410,7 @@ public:
             while(midiqueue->PeekEvent(nextEventTime))
             {
                 if(SamplesSmallerThan(nextEventTime, cur_samples))
-                    UI.PrintLn("Warning: processing event in the past %i<%i\n", (int)nextEventTime, (int)cur_samples);
+                    ui->PrintLn("Warning: processing event in the past %i<%i\n", (int)nextEventTime, (int)cur_samples);
                 uint32_t timeDiff = SamplesDiff(nextEventTime, cur_samples);
                 if(timeDiff > 0)
                     break;
@@ -425,6 +426,7 @@ private:
     MidiEventQueue *midiqueue;
     MIDIeventhandler evh;
     uint32_t cur_samples;
+    UI *ui;
 };
 
 int main(int argc, char** argv)
@@ -434,8 +436,8 @@ int main(int argc, char** argv)
     // is called.
     const double AudioBufferLength = 0.025;
 
-    UI.InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
-    UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
+    InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
+    InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -446,21 +448,22 @@ int main(int argc, char** argv)
     unsigned int sample_rate = 0;
     InitializeAudio(AudioBufferLength, &sample_rate);
 
+    UI *ui = new UI();
+
     Clock *midiclock;
     MidiEventQueue *midiqueue;
-    midiclock = new Clock(0, sample_rate);
+    midiclock = new Clock(0, sample_rate, ui);
     midiqueue = new MidiEventQueue();
 
     AlsaSeqListener *seqin = new AlsaSeqListener(midiclock, midiqueue);
     seqin->Start();
 
-    UI.StartGrid();
-    SynthLoop audio_gen(midiclock, midiqueue, sample_rate);
-    StartAudio(&audio_gen, &audio_gen);
+    SynthLoop audio_gen(midiclock, midiqueue, sample_rate, ui);
+    StartAudio(&audio_gen, &audio_gen, ui);
 
-    /// XXX no way to quit right now
-    while(true)
-        sleep(10);
+    /// XXX use a condition flag
+    while(!QuitFlag)
+        sleep(1);
 
     ShutdownAudio();
 
@@ -470,7 +473,7 @@ int main(int argc, char** argv)
     midiclock = 0;
     delete midiqueue;
     midiqueue = 0;
-
-    UI.Cleanup();
+    delete ui;
+    ui = 0;
     return 0;
 }

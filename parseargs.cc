@@ -29,7 +29,7 @@ int ParseArguments(int argc, char **argv)
 {
     if(argc < 2)
     {
-        UI.InitMessage(-1,
+        InitMessage(-1,
             "Usage: adlmidi <midifilename> [ <options> ] [ <banknumber> [ <numcards> [ <numfourops>] ] ]\n"
             "       adlmidi <midifilename> -1   To enter instrument tester\n"
             " -p Enables adlib percussion instrument mode\n"
@@ -44,11 +44,11 @@ int ParseArguments(int argc, char **argv)
             " -noreverb Disable reverb\n"
         );
         for(unsigned a=0; a<sizeof(banknames)/sizeof(*banknames); ++a)
-            UI.InitMessage(-1, "%10s%2u = %s\n",
+            InitMessage(-1, "%10s%2u = %s\n",
                 a?"":"Banks:",
                 a,
                 banknames[a]);
-        UI.InitMessage(-1,
+        InitMessage(-1,
             "     Use banks 2-5 to play Descent \"q\" soundtracks.\n"
             "     Look up the relevant bank number from descent.sng.\n"
             "\n"
@@ -91,7 +91,7 @@ int ParseArguments(int argc, char **argv)
 	        EmuType = OPLEMU_YMF262;
 	    else
 	    {
-		UI.InitMessage(12, "unknown opl emulator %s.\n", emu);
+		InitMessage(12, "unknown opl emulator %s.\n", emu);
 		return 0;
 	    }
 	}
@@ -111,10 +111,10 @@ int ParseArguments(int argc, char **argv)
         AdlBank = bankno;
         if(AdlBank >= NumBanks)
         {
-            UI.InitMessage(12, "bank number may only be 0..%u.\n", NumBanks-1);
+            InitMessage(12, "bank number may only be 0..%u.\n", NumBanks-1);
             return 0;
         }
-        UI.InitMessage(-1, "FM instrument bank %u '%s' selected.\n", AdlBank, banknames[AdlBank]);
+        InitMessage(-1, "FM instrument bank %u '%s' selected.\n", AdlBank, banknames[AdlBank]);
     }
 
     unsigned n_fourop[2] = {0,0}, n_total[2] = {0,0};
@@ -126,7 +126,7 @@ int ParseArguments(int argc, char **argv)
         if(adlins[insno].adlno1 != adlins[insno].adlno2)
             ++n_fourop[a/128];
     }
-    UI.InitMessage(-1, "This bank has %u/%u four-op melodic instruments and %u/%u percussive ones.\n",
+    InitMessage(-1, "This bank has %u/%u four-op melodic instruments and %u/%u percussive ones.\n",
         n_fourop[0], n_total[0],
         n_fourop[1], n_total[1]);
 
@@ -135,7 +135,7 @@ int ParseArguments(int argc, char **argv)
         NumCards = std::atoi(argv[3]);
         if(NumCards < 1 || NumCards > MaxCards)
         {
-            UI.InitMessage(12, "number of cards may only be 1..%u.\n", MaxCards);
+            InitMessage(12, "number of cards may only be 1..%u.\n", MaxCards);
             return 0;
         }
     }
@@ -144,7 +144,7 @@ int ParseArguments(int argc, char **argv)
         NumFourOps = std::atoi(argv[4]);
         if(NumFourOps > 6 * NumCards)
         {
-            UI.InitMessage(12, "number of four-op channels may only be 0..%u when %u OPL3 cards are used.\n",
+            InitMessage(12, "number of four-op channels may only be 0..%u when %u OPL3 cards are used.\n",
                 6*NumCards, NumCards);
             return 0;
         }
@@ -155,18 +155,18 @@ int ParseArguments(int argc, char **argv)
           : (n_fourop[0] < n_total[0]*1/8) ? 0
           : (NumCards==1 ? 1 : NumCards*4);
 
-    UI.InitMessage(-1,
+    InitMessage(-1,
         "Simulating %u OPL3 cards for a total of %u operators.\n"
         "Setting up the operators as %u four-op channels, %u dual-op channels",
         NumCards, NumCards*36,
         NumFourOps, (AdlPercussionMode ? 15 : 18) * NumCards - NumFourOps*2);
     if(AdlPercussionMode)
-        UI.InitMessage(-1, ", %u percussion channels", NumCards * 5);
-    UI.InitMessage(-1, "\n");
+        InitMessage(-1, ", %u percussion channels", NumCards * 5);
+    InitMessage(-1, "\n");
 
     if(n_fourop[0] >= n_total[0]*15/16 && NumFourOps == 0)
     {
-        UI.InitMessage(12,
+        InitMessage(12,
             "ERROR: You have selected a bank that consists almost exclusively of four-op patches.\n"
             "       The results (silence + much cpu load) would be probably\n"
             "       not what you want, therefore ignoring the request.\n");

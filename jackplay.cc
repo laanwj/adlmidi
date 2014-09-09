@@ -1,3 +1,4 @@
+/* Standalone JACK softsynth */
 #include "adldata.hh"
 #include "config.hh"
 #include "midievt.hh"
@@ -20,13 +21,6 @@ static MIDIeventhandler *evh;
 static jack_port_t *output_port[2];
 static jack_port_t *midi_port;
 static jack_client_t *client;
-
-static void TidyupAndExit(int)
-{
-    UI.Cleanup();
-    signal(SIGINT, SIG_DFL);
-    raise(SIGINT);
-}
 
 // JACK audio callback
 static int JACK_AudioCallback(jack_nframes_t nframes, void *)
@@ -74,8 +68,11 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 
 static void JACK_ShutdownCallback(void *)
 {
-    UI.Cleanup();
-    exit(1);
+    QuitFlag = true;
+}
+static void TidyupAndExit(int)
+{
+    QuitFlag = true;
 }
 
 void InitializeAudio()
@@ -85,17 +82,17 @@ void InitializeAudio()
     const char *server_name = NULL;
     const char **ports;
     if ((client = jack_client_open("adlmidi", options, &status, server_name)) == 0) {
-        UI.InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
+        InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
         if (status & JackServerFailed) {
-            UI.InitMessage(-1, "Unable to connect to JACK server\n");
+            InitMessage(-1, "Unable to connect to JACK server\n");
         }
         exit(1);
     }
     if (status & JackServerStarted) {
-        UI.InitMessage(-1, "JACK server started\n");
+        InitMessage(-1, "JACK server started\n");
     }
     if (status & JackNameNotUnique) {
-        UI.InitMessage(-1, "unique name `%s' assigned\n", jack_get_client_name(client));
+        InitMessage(-1, "unique name `%s' assigned\n", jack_get_client_name(client));
     }
     jack_set_process_callback(client, JACK_AudioCallback, 0);
     jack_on_shutdown(client, JACK_ShutdownCallback, 0);
@@ -108,7 +105,7 @@ void InitializeAudio()
                                          JACK_DEFAULT_AUDIO_TYPE,
                                          JackPortIsOutput, 0);
         if (output_port[port] == NULL) {
-            UI.InitMessage(-1, "no more JACK ports available\n");
+            InitMessage(-1, "no more JACK ports available\n");
             exit(1);
         }
     }
@@ -117,25 +114,25 @@ void InitializeAudio()
                                  JACK_DEFAULT_MIDI_TYPE,
                                  JackPortIsInput, 0);
     if (midi_port == NULL) {
-        UI.InitMessage(-1, "no more JACK midi ports available\n");
+        InitMessage(-1, "no more JACK midi ports available\n");
         exit(1);
     }
 
     if (jack_activate(client)) {
-        UI.InitMessage(-1, "JACK: cannot activate client\n");
+        InitMessage(-1, "JACK: cannot activate client\n");
         exit(1);
     }
 
     ports = jack_get_ports(client, NULL, NULL,
                            JackPortIsPhysical|JackPortIsInput);
     if (ports == NULL) {
-        UI.InitMessage(-1, "JACK: no physical playback ports\n");
+        InitMessage(-1, "JACK: no physical playback ports\n");
     }
 
     for(int port=0; port<2; ++port)
     {
         if (jack_connect(client, jack_port_name(output_port[port]), ports[port])) {
-            UI.InitMessage(-1, "JACK: cannot connect output ports\n");
+            InitMessage(-1, "JACK: cannot connect output ports\n");
         }
     }
     jack_free(ports);
@@ -152,8 +149,8 @@ void ShutdownAudio()
 
 int main(int argc, char** argv)
 {
-    UI.InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
-    UI.InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
+    InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
+    InitMessage(3, "(C) -- https://github.com/laanwj/adlmidi\n");
 
     signal(SIGTERM, TidyupAndExit);
     signal(SIGINT, TidyupAndExit);
@@ -163,17 +160,18 @@ int main(int argc, char** argv)
         return rv;
     InitializeAudio();
 
-    UI.StartGrid();
+    UI *ui = new UI();
+
     unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
-    evh = new MIDIeventhandler(jack_rate);
+    evh = new MIDIeventhandler(jack_rate, ui);
     evh->Reset();
 
-    /// XXX no way to quit right now
-    while(true)
-        sleep(10);
+    /// XXX use a condition flag
+    while(!QuitFlag)
+        sleep(1);
 
     ShutdownAudio();
 
-    UI.Cleanup();
+    delete ui; ui = 0;
     return 0;
 }

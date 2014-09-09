@@ -7,21 +7,24 @@
 #include <vector>
 #include <map>
 
+class UIInterface;
+
 struct OPL3IF
 {
-    unsigned NumChannels;
-
+private:
     std::vector<OPLEmul*> cards;
     bool fullpan;
-private:
     std::vector<unsigned short> ins; // index to adl[], cached, needed by Touch()
     std::vector<unsigned char> pit;  // value poked to B0, cached, needed by NoteOff)(
     std::vector<unsigned char> regBD;
+    UIInterface *ui;
 
     void Cleanup();
 public:
+    OPL3IF(UIInterface *ui);
     ~OPL3IF();
 
+    unsigned NumChannels;
     std::vector<char> four_op_category; // 1 = quad-master, 2 = quad-slave, 0 = regular
                                         // 3 = percussion BassDrum
                                         // 4 = percussion Snare
@@ -135,9 +138,9 @@ private:
         void AddAge(long ms);
     };
     std::vector<AdlChannel> ch;
-
-    OPL3IF opl;
     unsigned int sample_rate;
+    UIInterface *ui;
+    OPL3IF opl;
     enum { Upd_Patch  = 0x1,
            Upd_Pan    = 0x2,
            Upd_Volume = 0x4,
@@ -179,7 +182,7 @@ private:
     void ChannelAfterTouch(int MidCh, int vol);
     void WheelPitchBend(int MidCh, int a, int b);
 public:
-    MIDIeventhandler(unsigned int sample_rate);
+    MIDIeventhandler(unsigned int sample_rate, UIInterface *ui);
     void HandleEvent(int port, const unsigned char *data, unsigned length);
     void SetNumPorts(int channels);
     void Reset();
