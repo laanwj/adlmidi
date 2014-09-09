@@ -175,14 +175,12 @@ void UI::PrintLn(const char* fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     char Line[512];
-  #ifndef __CYGWIN__
     int nchars = vsnprintf(Line, sizeof(Line), fmt, ap);
-  #else
-    int nchars = std::vsprintf(Line, fmt, ap); /* SECURITY: POSSIBLE BUFFER OVERFLOW */
-  #endif
     va_end(ap);
 
-    if(nchars == 0) return;
+    if(nchars <= 0) return;
+    if((size_t)nchars > (sizeof(Line)-1))
+        nchars = sizeof(Line)-1;
 
     const int beginx = 2;
     int x;
