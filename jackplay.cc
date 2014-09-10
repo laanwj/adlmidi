@@ -23,6 +23,25 @@ static jack_port_t *output_port[2];
 static jack_port_t *midi_port;
 static jack_client_t *client;
 
+static inline void write_samples(float *out[2], jack_nframes_t offset, jack_nframes_t count)
+{
+    float outbuf[MaxSamplesAtTime*2];
+    while (count > 0) // Some of the underlying synths are limited to 512 samples at a time
+    {
+        jack_nframes_t n_samples = std::min(count, MaxSamplesAtTime);
+        // Update adds in samples, so initialize to zero
+        memset(outbuf, 0, n_samples*2*sizeof(float));
+        evh->Update(outbuf, n_samples);
+        for(unsigned a = 0; a < n_samples; ++a)
+        {
+            out[0][offset + a] = outbuf[a*2+0];
+            out[1][offset + a] = outbuf[a*2+1];
+        }
+        count -= n_samples;
+        offset += n_samples;
+    }
+}
+
 // JACK audio callback
 static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 {
@@ -32,38 +51,18 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
     jack_nframes_t event_idx = 0;
     void *midi_buf = jack_port_get_buffer(midi_port, nframes);
     jack_nframes_t event_count = jack_midi_get_event_count(midi_buf);
-    // invariant: in_event holds event[event_idx] if event_idx<event_count, otherwise undefined
-    jack_midi_event_t in_event;
 
-    if(event_idx < event_count)
-        jack_midi_event_get(&in_event, midi_buf, event_idx);
-    while(offset < nframes)
+    for(event_idx=0; event_idx<event_count; ++event_idx)
     {
-        jack_nframes_t next_event = nframes;
-        if(event_idx < event_count)
-            next_event = std::min(in_event.time, next_event);
+        jack_midi_event_t in_event;
+        jack_midi_event_get(&in_event, midi_buf, event_idx);
 
-        float outbuf[MaxSamplesAtTime*2];
-        jack_nframes_t n_samples = std::min(next_event - offset, (jack_nframes_t)MaxSamplesAtTime);
-        // Update adds in samples, so initialize to zero
-        memset(outbuf, 0, n_samples*2*sizeof(float));
-        evh->Update(outbuf, n_samples);
-        for(unsigned a = 0; a < n_samples; ++a)
-        {
-            out[0][offset + a] = outbuf[a*2+0];
-            out[1][offset + a] = outbuf[a*2+1];
-        }
+        write_samples(out, offset, in_event.time - offset);
+        offset = in_event.time;
 
-        while(event_idx < event_count && in_event.time <= offset)
-        {
-            evh->HandleEvent(0, in_event.buffer, in_event.size);
-            event_idx += 1;
-            if(event_idx < event_count)
-                jack_midi_event_get(&in_event, midi_buf, event_idx);
-        }
-        offset += n_samples;
+        evh->HandleEvent(0, in_event.buffer, in_event.size);
     }
-
+    write_samples(out, offset, nframes - offset);
     return 0;
 }
 
