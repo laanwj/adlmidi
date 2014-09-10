@@ -177,7 +177,6 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
 
     // create two ports, for stereo audio
     const char * const portnames[] = { "out_1", "out_2" };
-    const char * const midi_portnames[] = { "midi_1" };
     for(int port=0; port<2; ++port)
     {
         output_port[port] = jack_port_register(client, portnames[port],
@@ -185,17 +184,6 @@ void InitializeAudio(double AudioBufferLength, unsigned int *sample_rate)
                                          JackPortIsOutput, 0);
         if (output_port[port] == NULL) {
             InitMessage(-1, "no more JACK ports available\n");
-            exit(1);
-        }
-    }
-
-    for(int port=0; port<NUM_MIDI_PORTS; ++port)
-    {
-        midi_port[port] = jack_port_register(client, midi_portnames[port],
-                                         JACK_DEFAULT_MIDI_TYPE,
-                                         JackPortIsInput, 0);
-        if (midi_port[port] == NULL) {
-            InitMessage(-1, "no more JACK midi ports available\n");
             exit(1);
         }
     }
@@ -289,7 +277,22 @@ void StartAudio(AudioGenerator *gen, MIDIReceiver *midi, UIInterface *ui)
 {
     audio_postprocessor = new AudioPostprocessor(gen, ui);
     audio_gen = audio_postprocessor;
-    midi_if = midi;
+    if (midi)
+    {
+        const char * const midi_portnames[] = { "midi_1" };
+        for(int port=0; port<NUM_MIDI_PORTS; ++port)
+        {
+            midi_port[port] = jack_port_register(client, midi_portnames[port],
+                                             JACK_DEFAULT_MIDI_TYPE,
+                                             JackPortIsInput, 0);
+            if (midi_port[port] == NULL) {
+                InitMessage(-1, "no more JACK midi ports available\n");
+                exit(1);
+            }
+        }
+
+        midi_if = midi;
+    }
 }
 
 #if 0
@@ -445,8 +448,11 @@ void ShutdownAudio()
     jack_deactivate(client);
     for(int port=0; port<2; ++port)
         jack_port_unregister(client, output_port[port]);
-    for(int port=0; port<NUM_MIDI_PORTS; ++port)
-        jack_port_unregister(client, midi_port[port]);
+    if (midi_if)
+    {
+        for(int port=0; port<NUM_MIDI_PORTS; ++port)
+            jack_port_unregister(client, midi_port[port]);
+    }
     jack_client_close(client);
 #endif
     audio_gen = 0;
