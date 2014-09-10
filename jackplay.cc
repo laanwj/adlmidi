@@ -77,12 +77,12 @@ static void TidyupAndExit(int signal)
     ExitSignal = signal;
 }
 
+/// Connect to jack server and create ports
 void InitializeAudio()
 {
     jack_options_t options = JackNullOption;
     jack_status_t status;
     const char *server_name = NULL;
-    const char **ports;
     if ((client = jack_client_open("adlmidi", options, &status, server_name)) == 0) {
         InitMessage(-1, "jack_client_open() failed, status = 0x%2.0x\n", status);
         if (status & JackServerFailed) {
@@ -119,7 +119,12 @@ void InitializeAudio()
         InitMessage(-1, "no more JACK midi ports available\n");
         exit(1);
     }
+}
 
+/// Start audio thread and connect ports
+void StartAudio()
+{
+    const char **ports;
     if (jack_activate(client)) {
         InitMessage(-1, "JACK: cannot activate client\n");
         exit(1);
@@ -168,6 +173,7 @@ int main(int argc, char** argv)
     evh = new MIDIeventhandler(jack_rate, ui);
     evh->Reset();
 
+    StartAudio();
     /// XXX use a condition flag
     while(!QuitFlag)
         sleep(1);
