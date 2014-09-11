@@ -52,7 +52,7 @@
 #include "xs_Float.h"
 
 #define OPL_MAX_SAMPLE_RATE     96000
-#define VOLUME_MUL		0.3333
+#define VOLUME_MUL		0.4
 
 // TODO this should not be a global
 unsigned int OPL_SAMPLE_RATE;
@@ -982,7 +982,7 @@ Channel::Channel (int baseAddress, double startvol) {
 	channelBaseAddress = baseAddress;
 	fnuml = fnumh = kon = block = fb = cnt = 0;
 	feedback[0] = feedback[1] = 0;
-	leftPan = rightPan = startvol;
+	leftPan = rightPan = startvol * VOLUME_MUL;
 }
 
 void Channel::update_2_KON1_BLOCK3_FNUMH2(OPL3 *OPL3) {
@@ -1865,8 +1865,8 @@ void OPL3::SetPanning(int c, float left, float right)
 		{
 			channel = channels[1][c - 9];
 		}
-		channel->leftPan = left;
-		channel->rightPan = right;
+		channel->leftPan = left * VOLUME_MUL;
+		channel->rightPan = right * VOLUME_MUL;
 	}
 }
 
