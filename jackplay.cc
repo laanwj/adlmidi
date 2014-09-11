@@ -153,6 +153,17 @@ void ShutdownAudio()
     jack_client_close(client);
 }
 
+class DummyUI: public UIInterface
+{
+public:
+    ~DummyUI() {}
+
+    void PrintLn(const char* fmt, ...) __attribute__((format(printf,2,3))) {}
+    void IllustrateNote(int adlchn, int note, int ins, int pressure, double bend) {}
+    void IllustrateVolumes(double left, double right) {}
+    void IllustratePatchChange(int MidCh, int patch, int adlinsid) {}
+};
+
 int main(int argc, char** argv)
 {
     InitMessage(15, "ADLSEQ: OPL3 softsynth for Linux\n");
@@ -166,7 +177,11 @@ int main(int argc, char** argv)
         return rv;
     InitializeAudio();
 
-    UI *ui = new UI();
+#if 1
+    UIInterface *ui = new UI();
+#else
+    UIInterface *ui = new DummyUI();
+#endif
 
     unsigned int jack_rate = (unsigned int)jack_get_sample_rate(client);
     evh = new MIDIeventhandler(jack_rate, ui);
