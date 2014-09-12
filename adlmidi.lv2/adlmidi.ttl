@@ -6,7 +6,7 @@
 @prefix urid: <http://lv2plug.in/ns/ext/urid#> .
 
 <http://github.com/laanwj/adlmidi>
-        a lv2:Plugin ;
+        a lv2:InstrumentPlugin, lv2:Plugin ;
         doap:name "ADLMIDI OPL3 softsynth" ;
         doap:license <http://opensource.org/licenses/gpl> ;
         lv2:project <http://lv2plug.in/ns/lv2> ;
