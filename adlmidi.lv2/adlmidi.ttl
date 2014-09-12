@@ -4,6 +4,7 @@
 @prefix midi: <http://lv2plug.in/ns/ext/midi#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix urid: <http://lv2plug.in/ns/ext/urid#> .
+@prefix programs: <http://kxstudio.sf.net/ns/lv2ext/programs#> .
 
 <http://github.com/laanwj/adlmidi>
         a lv2:InstrumentPlugin, lv2:Plugin ;
@@ -12,6 +13,7 @@
         lv2:project <http://lv2plug.in/ns/lv2> ;
         lv2:requiredFeature urid:map ;
         lv2:optionalFeature lv2:hardRTCapable ;
+        lv2:extensionData programs:Interface ;
         lv2:port [
                 a lv2:InputPort ,
                         atom:AtomPort ;

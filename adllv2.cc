@@ -19,6 +19,7 @@
 #include "lv2/lv2plug.in/ns/ext/urid/urid.h"
 #include "lv2/lv2plug.in/ns/ext/log/log.h"
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include "lv2ext/lv2_programs.h"
 
 #define ADLMIDI_URI "http://github.com/laanwj/adlmidi"
 
@@ -52,6 +53,10 @@ public:
     void run(uint32_t sample_count);
     void deactivate();
 
+    // LV2_programs
+    const LV2_Program_Descriptor *get_program(uint32_t index);
+    void select_program(uint32_t bank, uint32_t program);
+
     struct Features
     {
         LV2_URID_Map* map;
@@ -79,6 +84,7 @@ private:
 
     MIDIeventhandler *evh;
     UIInterface *ui;
+    std::vector<LV2_Program_Descriptor> programs;
 };
 
 class ADLUIInterface_LV2: public UIInterface
@@ -132,6 +138,16 @@ AdlMidiPlugin::AdlMidiPlugin(const LV2_Descriptor* descriptor, double rate, cons
     }
 
     m_bundle_path = bundle_path;
+
+    /* expose banks through programs extension */
+    for (unsigned bank=0; bank<NumBanks; ++bank)
+    {
+        LV2_Program_Descriptor program;
+        program.bank = bank;
+        program.program = 0;
+        program.name = banknames[bank];
+        programs.push_back(program);
+    }
 }
 
 AdlMidiPlugin::~AdlMidiPlugin()
@@ -202,6 +218,29 @@ void AdlMidiPlugin::deactivate()
     delete evh; evh = 0;
 }
 
+const LV2_Program_Descriptor *AdlMidiPlugin::get_program(uint32_t index)
+{
+    if (index >= programs.size()) return NULL;
+    return &programs[index];
+}
+
+void AdlMidiPlugin::select_program(uint32_t bank, uint32_t program)
+{
+    if (!evh)
+        return;
+    for (unsigned ch=0; ch<16; ++ch)
+    {
+        uint8_t data[3];
+        data[0] = LV2_MIDI_MSG_CONTROLLER + ch;
+        data[1] = LV2_MIDI_CTL_LSB_BANK;
+        data[2] = bank;
+        evh->HandleEvent(0, data, 3);
+        data[0] = LV2_MIDI_MSG_PGM_CHANGE + ch;
+        data[1] = program;
+        evh->HandleEvent(0, data, 2);
+    }
+}
+
 //////////////////////////////////////////
 // LV2 plugin C++ wrapper
 
@@ -243,15 +282,35 @@ deactivate(LV2_Handle instance)
     static_cast<AdlMidiPlugin*>(instance)->deactivate();
 }
 
+const LV2_Program_Descriptor *get_program(LV2_Handle handle,
+                                             uint32_t index)
+{
+    return static_cast<AdlMidiPlugin*>(handle)->get_program(index);
+}
+
+void select_program(LV2_Handle handle,
+                       uint32_t bank,
+                       uint32_t program)
+{
+    static_cast<AdlMidiPlugin*>(handle)->select_program(bank, program);
+}
+
 static void
 cleanup(LV2_Handle instance)
 {
     delete static_cast<AdlMidiPlugin*>(instance);
 }
 
+static const LV2_Programs_Interface programs = {
+    get_program,
+    select_program
+};
+
 static const void*
 extension_data(const char* uri)
 {
+    if (!strcmp(uri, LV2_PROGRAMS__Interface))
+        return &programs;
     return NULL;
 }
 
