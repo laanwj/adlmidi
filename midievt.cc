@@ -2,7 +2,7 @@
 
 #include "adldata.hh"
 #include "config.hh"
-#include "ui.hh"
+#include "uiinterface.hh"
 
 #include <algorithm>
 #include <assert.h>

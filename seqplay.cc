@@ -3,6 +3,7 @@
 #include "config.hh"
 #include "midievt.hh"
 #include "parseargs.hh"
+#include "sync.hh"
 #include "ui.hh"
 
 #include <assert.h>

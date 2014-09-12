@@ -1,37 +1,9 @@
-#ifdef __WIN32__
-# include <cctype>
-# define WIN32_LEAN_AND_MEAN
-# include <windows.h>
-# include <mmsystem.h>
-#endif
+#ifndef H_ADLDATA
+#define H_ADLDATA
 
-#if defined(__WIN32__) || defined(__DJGPP__)
 typedef unsigned char Uint8;
 typedef unsigned short Uint16;
 typedef unsigned Uint32;
-#else
-# include <SDL.h>
-class MutexType
-{
-    SDL_mutex* mut;
-public:
-    MutexType() : mut(SDL_CreateMutex()) { }
-    ~MutexType() { SDL_DestroyMutex(mut); }
-    void Lock() { SDL_mutexP(mut); }
-    void Unlock() { SDL_mutexV(mut); }
-
-    friend class CondType;
-};
-class CondType
-{
-    SDL_cond* cond;
-public:
-    CondType() : cond(SDL_CreateCond()) { }
-    ~CondType() { SDL_DestroyCond(cond); }
-    void Signal() { SDL_CondSignal(cond); }
-    void Wait(MutexType &mutex) { SDL_CondWait(cond, mutex.mut); }
-};
-#endif
 
 extern const struct adldata
 {
@@ -55,3 +27,5 @@ extern const struct adlinsdata
 extern const unsigned short banks[][256];
 extern const char* const banknames[70];
 static const unsigned NumBanks = sizeof(banknames)/sizeof(*banknames);
+
+#endif

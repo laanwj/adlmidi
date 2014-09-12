@@ -27,8 +27,6 @@ static const char MIDIsymbols[256+1] =
 
 #include "midi_symbols_256.hh"
 
-UIInterface::~UIInterface() { }
-
 class UnixTerminalConsoleInterface: public ConsoleInterface
 {
 public:

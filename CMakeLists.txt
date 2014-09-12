@@ -52,6 +52,16 @@ endif (JACK_FOUND)
 include_directories(${JACK_INCLUDE_DIRS})
 set(AUDIO_LIBS ${AUDIO_LIBS} ${JACK_LIBRARIES})
 
+# LV2
+pkg_check_modules(LV2 lv2>=.0.1.0) # sets LV2_LIBRARIES
+if (LV2_FOUND)
+    message(STATUS "Using lv2 ${LV2_VERSION}")
+    set(LV2_ENABLED 1)
+else (LV2_FOUND)
+    message(STATUS "LV2 not found, will not build LV2 plugin")
+endif (LV2_FOUND)
+include_directories(${LV2_INCLUDE_DIRS})
+
 # Qt
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -85,7 +95,7 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
 # Compiler flags
-set (CMAKE_CXX_FLAGS "-std=c++11 -pedantic -Wall -Wextra" CACHE STRING "Common CXX compiler flags" FORCE)
+set (CMAKE_CXX_FLAGS "-std=c++11 -pedantic -Wall -Wextra -fvisibility=hidden" CACHE STRING "Common CXX compiler flags" FORCE)
 set (CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -ggdb" CACHE STRING "Debugging CXX compiler flags" FORCE)
 if (BuildForAMD_X86_64)
     set (OPTFLAGS "-O3 -march=athlon64 -m64 -Wall -ffast-math -fno-finite-math-only -fomit-frame-pointer")
@@ -129,6 +139,7 @@ add_library(adlmidi_shared STATIC
     adldata.cc
     midievt.cc
     ui.cc
+    uiinterface.cc
     audioout.cc
     parseargs.cc
     ${adlmidi_QT}
@@ -144,6 +155,22 @@ target_link_libraries(adlseq adlmidi_shared ${SEQ_LIBS})
 
 add_executable(adljack jackplay.cc)
 target_link_libraries(adljack adlmidi_shared)
+
+if (LV2_ENABLED)
+    add_library(adllv2 SHARED
+        adllv2.cc
+        midievt.cc
+        adldata.cc
+        uiinterface.cc
+        oplsynth/OPL3.cpp
+        oplsynth/dosbox_opl.cpp
+        oplsynth/dosbox_dbopl.cpp
+        oplsynth/ymf262.cpp
+        )
+
+    set_target_properties(adllv2 PROPERTIES PREFIX "")
+    target_link_libraries(adllv2 ${LV2_LIBRARIES} m)
+endif (LV2_ENABLED)
 
 add_executable(gen_adldata gen_adldata.cc)
 target_link_libraries(gen_adldata oplsynth)
