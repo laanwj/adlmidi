@@ -73,8 +73,6 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
 {
     float *out[2] = {(jack_default_audio_sample_t *) jack_port_get_buffer(output_port[0], nframes),
                      (jack_default_audio_sample_t *) jack_port_get_buffer(output_port[1], nframes)};
-    unsigned bufsize = nframes*2;
-    float in[bufsize]; /* need temporary buffer for interleaved samples */
 
     if(midi_if)
     {
@@ -93,10 +91,17 @@ static int JACK_AudioCallback(jack_nframes_t nframes, void *)
     }
 
     if(audio_gen)
+    {
+        unsigned bufsize = nframes*2;
+        float in[bufsize]; /* need temporary buffer for interleaved samples */
         audio_gen->RequestSamples(nframes, in);
 
-    for(unsigned a = 0; a < bufsize; ++a)
-        out[a&1][a>>1] = in[a];
+        for(unsigned a = 0; a < bufsize; ++a)
+            out[a&1][a>>1] = in[a];
+    } else {
+        memset(out[0], 0, nframes*sizeof(float));
+        memset(out[1], 0, nframes*sizeof(float));
+    }
     return 0;
 }
 static void JACK_ShutdownCallback(void *)
